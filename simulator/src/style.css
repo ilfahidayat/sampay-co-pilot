@@ -29,35 +29,127 @@ body {
 .card-iot {
   background-color: var(--esp-card-bg);
   border: 1px solid var(--esp-card-border);
-  border-radius: 14px;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
 }
 
 .card-iot:hover {
   border-color: #cbd5e1;
-  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
 }
+
+.card-accent-bar {
+  height: 4px;
+  width: 100%;
+}
+.accent-k01 { background: linear-gradient(90deg, #2563eb, #38bdf8); }
+.accent-k02 { background: linear-gradient(90deg, #059669, #34d399); }
+.accent-k03 { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+.accent-k04 { background: linear-gradient(90deg, #d97706, #fbbf24); }
 
 .card-iot .card-header {
   background-color: #ffffff;
   border-bottom: 1px solid #f1f5f9;
-  padding: 0.9rem 1.25rem;
+  padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--esp-text-primary);
-  border-top-left-radius: 14px;
-  border-top-right-radius: 14px;
 }
 
-/* Status Indicator LEDs on Light Theme */
-.led-indicator {
-  width: 12px;
-  height: 12px;
+/* Pulsing Online Indicator */
+.pulse-indicator-green {
+  width: 8px;
+  height: 8px;
+  background-color: #10b981;
   border-radius: 50%;
   display: inline-block;
-  background-color: #cbd5e1;
-  border: 1px solid #94a3b8;
-  transition: all 0.2s ease-in-out;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+/* Sensor Tiles - Pastel, Alive, Clean */
+.sensor-tile {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid transparent;
+}
+.sensor-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.sensor-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+}
+
+.sensor-tile-do {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-color: #bae6fd;
+}
+.sensor-tile-ammonia {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: #fde68a;
+}
+.sensor-tile-ph {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #bbf7d0;
+}
+.sensor-tile-tss {
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border-color: #e9d5ff;
+}
+
+/* Actuator Matrix Rows */
+.actuator-row {
+  transition: all 0.25s ease-in-out;
+  border: 1px solid transparent;
+}
+
+.actuator-row.bg-light-subtle {
+  background-color: #f8fafc;
+  border-color: #f1f5f9;
+}
+.actuator-row.bg-light-subtle:hover {
+  background-color: #f1f5f9;
+}
+
+.actuator-active-cyan {
+  background: linear-gradient(90deg, #ecfeff 0%, #f0fdfa 100%);
+  border-color: #99f6e4 !important;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.08);
+}
+.actuator-active-green {
+  background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: #86efac !important;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.08);
+}
+.actuator-active-amber {
+  background: linear-gradient(90deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: #fde68a !important;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.08);
+}
+.actuator-active-blue {
+  background: linear-gradient(90deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #bfdbfe !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
 }
 
 .led-indicator.on-green {

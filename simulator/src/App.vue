@@ -72,14 +72,18 @@ onUnmounted(() => {
     <!-- Main Container Content (Compact 4-Column Grid) -->
     <div class="container-fluid px-3 px-lg-3 py-2 flex-grow-1">
       <!-- 1-Line Info Notice Banner -->
-      <div class="d-flex justify-content-between align-items-center bg-white border rounded-2 px-3 py-1 mb-2 shadow-sm" style="font-size: 0.75rem;">
-        <span class="text-secondary text-truncate">
-          <i class="bi bi-info-circle text-primary me-1"></i>
-          <strong>Pure Edge Receiver:</strong> Controlled remotely by SAC Platform (<a href="http://localhost:5173" target="_blank" class="fw-semibold">localhost:5173</a>). Trigger feeder/aerator on dashboard to watch live execution!
-        </span>
-        <span class="badge bg-light text-muted border font-monospace ms-2" style="font-size: 0.65rem;">
-          Topic: esp32/+/telemetry
-        </span>
+      <div class="d-flex justify-content-between align-items-center bg-white border rounded-3 px-3 py-1 mb-2 shadow-sm" style="font-size: 0.74rem;">
+        <div class="d-flex align-items-center gap-2 text-secondary text-truncate">
+          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-0.5 rounded-pill fw-semibold" style="font-size: 0.68rem;">
+            <i class="bi bi-broadcast-pin me-1"></i>Realtime Edge Node
+          </span>
+          <span class="text-truncate">
+            All actuators are orchestrated remotely from central SAC Dashboard (<a href="http://localhost:5173" target="_blank" class="fw-semibold text-primary">localhost:5173</a>). Trigger feeder/aerator on dashboard to watch live execution!
+          </span>
+        </div>
+        <div class="d-flex align-items-center gap-1 ms-2 font-monospace text-muted" style="font-size: 0.65rem;">
+          <span class="badge bg-light text-muted border">Topic: esp32/+/telemetry</span>
+        </div>
       </div>
 
       <!-- 4 Compact Nodes Grid (Fits in 1 Full Page) -->
