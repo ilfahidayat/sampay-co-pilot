@@ -28,6 +28,27 @@ export class AiAnalysisRepository {
       .first()
   }
 
+  async findLatestAcrossAllPonds() {
+    const ponds = await db('ponds').select('id').orderBy('id', 'asc')
+    const results = []
+    for (const p of ponds) {
+      const latest = await db('ai_analyses')
+        .where({ pond_id: p.id.toUpperCase() })
+        .orderBy('created_at', 'desc')
+        .first()
+
+      if (latest) {
+        results.push({
+          ...latest,
+          telemetry_snapshot: typeof latest.telemetry_snapshot === 'string' ? JSON.parse(latest.telemetry_snapshot) : latest.telemetry_snapshot,
+          anomalies_detected: typeof latest.anomalies_detected === 'string' ? JSON.parse(latest.anomalies_detected) : latest.anomalies_detected,
+          recommendation_payload: typeof latest.recommendation_payload === 'string' ? JSON.parse(latest.recommendation_payload) : latest.recommendation_payload
+        })
+      }
+    }
+    return results
+  }
+
   async findHistoryByPondId(pondId, limit = 50) {
     return db('ai_analyses')
       .where({ pond_id: pondId.toUpperCase() })

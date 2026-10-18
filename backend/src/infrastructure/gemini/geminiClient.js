@@ -262,6 +262,8 @@ class GeminiClient {
         fallbackText = `📊 **Telemetry Data for Pond ${primaryResult.pondId || 'K01'}:**\n• DO: **${t.do} mg/L**\n• pH: **${t.ph}**\n• Temp: **${t.temp}°C**\n• TAN: **${t.ammonia} ppm**\n• Floc: **${t.flocDensity} mL/L**`
       } else if (primaryCall.name === 'get_pond_diagnostic' && primaryResult) {
         fallbackText = `🔬 **Biofloc Diagnosis for Pond ${primaryResult.pondId || 'K01'}:**\n• Health Score: **${primaryResult.healthScore}/100** (${primaryResult.status})\n• ${primaryResult.summary}`
+      } else if (primaryCall.name === 'get_all_ponds_overview' && primaryResult?.markdownOverview) {
+        fallbackText = primaryResult.markdownOverview
       } else {
         fallbackText = `Function **${primaryCall.name}** for pond **${primaryCall.args?.pondId || 'K01'}** was processed successfully.`
       }

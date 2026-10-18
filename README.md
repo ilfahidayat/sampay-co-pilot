@@ -177,11 +177,12 @@ SAC/
 
 ### 4. 💬 NLOps Co-Pilot with Function Calling Tools
 Farm supervisors can interact via text or voice in English or Indonesian. Gemini executes live operations using tool calling:
-- `get_pond_telemetry`: Inspect real-time water quality metrics.
-- `get_pond_diagnostic`: Retrieve biological health evaluations and anomaly logs.
+- `get_all_ponds_overview`: Synthesizes a holistic facility assessment across all ponds (Pond 1 to Pond 4) with latest database diagnostics, key vitals comparison table, and strategic recommendations.
+- `get_pond_telemetry`: Inspect real-time water quality metrics for a specific pond.
+- `get_pond_diagnostic`: Retrieve biological health evaluations and anomaly logs from `ai_analyses`.
 - `adjust_aerator_vfd`: Directly calibrate aerator inverter frequency.
 - `dispense_feed`: Trigger automated feed auger dispenser.
-- `dose_molasses`: Inject organic carbon molasses solution.
+- `dose_molasses`: Inject organic carbon molasses solution (limited to 1-3 applications).
 - `purge_bottom_sludge`: Open bottom drain valve to remove anaerobic sludge.
 - `adjust_daily_treatment`: Dynamically update scheduled daily treatment doses.
 - `approve_all_treatments`: Supervisor approval of pending treatments.
@@ -212,8 +213,8 @@ Ensure your system meets the following requirements:
 
 ### Step 1: Clone the Repository
 ```bash
-git clone https://github.com/ilfahidayat/SAC.git
-cd SAC
+git clone https://github.com/ilfahidayat/sampay-co-pilot.git
+cd sampay-co-pilot
 ```
 
 ### Step 2: Install All Dependencies

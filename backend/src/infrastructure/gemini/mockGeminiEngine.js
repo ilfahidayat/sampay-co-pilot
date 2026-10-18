@@ -139,6 +139,51 @@ export class MockGeminiEngine {
     const isWarning = Number(telemetry.do) < 5.0
     const isCritical = Number(telemetry.do) < 3.8
 
+    // 0. MULTI-POND FLEET QUERY TOOL: Query condition & diagnosis across ALL ponds
+    const isMultiPond = /semua kolam|seluruh kolam|semua pond|all ponds|whole farm|farm overview|fleet|gambaran utuh|ringkasan kolam|ringkasan seluruh|kondisi farm|kondisi tambak|kolam 1 sampai 4|pond 1 to 4/i.test(text)
+    if (isMultiPond) {
+      const toolCall = {
+        name: 'get_all_ponds_overview',
+        args: { includePendingTreatments: true }
+      }
+
+      // Check if dynamic fleet data was provided in context
+      if (context.fleetMarkdown) {
+        return { reply: context.fleetMarkdown, toolCall, actionCard: null }
+      }
+
+      const reply = `### 🌐 Holistic Farm Overview & Multi-Pond Diagnostics
+
+**Facility Overall Health Index:** **88 / 100** (2 Ponds Optimal, 2 Ponds Warning)  
+**Total Standing Biomass:** **3,864.0 kg** across 4 Active Ponds
+
+| Pond | Species | Health Score | Status | Live Key Vitals | Recommended Priority |
+| :--- | :--- | :---: | :---: | :--- | :--- |
+| **Pond 1** | Red Tilapia (Finisher) | **85 / 100** | ⚠️ **WARNING** | DO: **6.59 mg/L**, TAN: **0.104 ppm**, Floc: **14.4 mL/L** | Monitor TAN Assimilation |
+| **Pond 2** | Black Tilapia (Grower) | **88 / 100** | 🟢 **OPTIMAL** | DO: **7.50 mg/L**, TAN: **0.050 ppm**, Floc: **3.7 mL/L** | Floc Development Baseline |
+| **Pond 3** | Nile Tilapia (Nursery) | **92 / 100** | 🟢 **OPTIMAL** | DO: **5.90 mg/L**, TAN: **0.040 ppm**, Floc: **16.2 mL/L** | Steady-State Equilibrium |
+| **Pond 4** | Red Tilapia (High Density) | **85 / 100** | ⚠️ **WARNING** | DO: **6.70 mg/L**, TAN: **0.116 ppm**, Floc: **14.1 mL/L** | Carbon Standby (< 0.15 ppm) |
+
+---
+
+#### 🔬 Database Biological Diagnostic Findings:
+1. **Pond 1 (K01)** — Health Score **85/100** (WARNING):
+   Slightly elevated Total Ammonia Nitrogen (0.104 ppm vs target < 0.05 ppm). Dissolved Oxygen (6.59 mg/L) and mature biofloc density (14.4 mL/L) are fully optimal. Heterotrophic bacteria are actively assimilating nitrogen.
+2. **Pond 2 (K02)** — Health Score **88/100** (OPTIMAL):
+   Excellent water quality parameters with high DO (7.50 mg/L) and safe TAN (0.050 ppm). Biofloc volume is currently at 3.7 mL/L (colonization stage).
+3. **Pond 3 (K03)** — Health Score **92/100** (OPTIMAL):
+   Operating in robust biofloc steady-state equilibrium. DO (5.90 mg/L) and floc volume (16.2 mL/L) are well within optimal ranges.
+4. **Pond 4 (K04)** — Health Score **85/100** (WARNING):
+   Stable water quality with DO at 6.70 mg/L and mature floc at 14.1 mL/L. TAN is mildly elevated at 0.116 ppm, safely below the carbon intervention trigger (0.15 ppm).
+
+#### ⚡ Strategic SOP Recommendations:
+• **Aerator Modulation**: Aerator baseline locked at 80% VFD (~1,200 RPM) across all units to support continuous aerobic bacterial floc respiration.
+• **C:N Carbon Allocation**: Molasses dosing remains on **STANDBY** (0g) across all ponds because biofloc densities are mature or TAN is below acute thresholds.
+• **Feeding Schedules**: Routine feeding (BioGrow 30% crude protein) proceed on schedule; DO levels are all safely above the 5.0 mg/L pre-feed interlock threshold.`
+
+      return { reply, toolCall, actionCard: null }
+    }
+
     // 1. DATA QUERY TOOL: Query pond telemetry / water quality
     if (text.includes('telemetri') || text.includes('kualitas air') || text.includes('water quality') || text.includes('cek data') || text.includes('data sensor') || text.includes('baca sensor') || text.includes('sensor')) {
       const toolCall = {

@@ -161,6 +161,19 @@ export const BIOFLOC_KNOWLEDGE_BASE = {
 // ============================================================================
 export const GEMINI_BIOFLOC_TOOLS = [
   {
+    name: "get_all_ponds_overview",
+    description: "Fetches live status, telemetry cache, biometrics, and latest AI biological diagnosis records across all active ponds in the farm for holistic fleet health synthesis. Call this whenever the user asks about the condition of all ponds, entire farm, whole fleet, or general facility health.",
+    parameters: {
+      type: "object",
+      properties: {
+        includePendingTreatments: {
+          type: "boolean",
+          description: "Whether to include today's scheduled daily treatments in the synthesis"
+        }
+      }
+    }
+  },
+  {
     name: "get_pond_telemetry",
     description: "Fetches live sensor telemetry (DO, pH, Temperature, TAN ammonia, Biofloc density, Mud solids) and culture metrics for a specified pond.",
     parameters: {
@@ -359,11 +372,30 @@ export function buildBioflocRagContext(pondId = 'K01', telemetry = {}, previousM
    - Biofloc Density: ${telemetry.flocDensity ?? telemetry.floc_density ?? 14.0} mL/L
 
 4. **Available System Actions & Control Tools:**
+   - Fleet Overview: 'get_all_ponds_overview' (All ponds synthesis)
    - Aerator VFD Regulation: 'adjust_aerator_vfd' (50% - 100%)
    - Feed Dispensing: 'dispense_feed' (Ration in kg)
    - Molasses Injection: 'dose_molasses' (Only if count < 3)
    - Bottom Siphon Purge: 'purge_bottom_sludge' (Max 300 L)
    - Daily Treatment Schedule: 'schedule_daily_treatment_plan'`
+}
+
+export function buildFleetRagContext(fleetPonds = []) {
+  const pondLines = fleetPonds.map(p => {
+    const tele = p.telemetry || p.telemetry_cache || {}
+    const parsedTele = typeof tele === 'string' ? JSON.parse(tele) : tele
+    const pNum = p.id.replace('K0', '').replace('K', '')
+    return `• Pond ${pNum} (${p.id}) [${p.species}]: Health Score ${p.health_score ?? 90}/100 (${p.status || 'OPTIMAL'}). DO=${parsedTele.do ?? 6.2} mg/L, pH=${parsedTele.ph ?? 7.5}, Temp=${parsedTele.temp ?? 28.5}°C, TAN=${parsedTele.ammonia ?? 0.02} ppm, Floc=${parsedTele.flocDensity ?? 14} mL/L. Latest AI Diagnosis: "${p.latestDiagnosisSummary || 'Stable steady-state biofloc balance.'}"`
+  }).join('\n')
+
+  return `### FLEET-WIDE BIOFLOC FACILITY CONTEXT (${fleetPonds.length} ACTIVE PONDS)
+${pondLines}
+
+When the user asks for the condition of all ponds, holistic status, or farm overview:
+1. Provide a crisp executive summary of overall facility health and average score.
+2. Present a clean Markdown table comparing all ponds: Pond 1, Pond 2, Pond 3, Pond 4.
+3. Synthesize the latest biological diagnosis for each pond from the database records above.
+4. Highlight any active warnings, critical parameters, and SOP action priorities.`
 }
 
 // ============================================================================

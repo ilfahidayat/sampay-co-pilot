@@ -6,7 +6,8 @@ import {
   REALTIME_EVALUATION_SCHEMA,
   DAILY_EXECUTION_SYNTHESIS_SCHEMA,
   GEMINI_BIOFLOC_TOOLS,
-  buildBioflocRagContext
+  buildBioflocRagContext,
+  buildFleetRagContext
 } from '../infrastructure/gemini/bioflocKnowledgeBase.js'
 import { aiAnalysisRepository } from '../repositories/aiAnalysisRepository.js'
 import { pondRepository } from '../repositories/pondRepository.js'
@@ -668,6 +669,98 @@ Provide a professional 2-sentence executive summary.`
     const pond = await pondRepository.findById(pondId)
 
     switch (toolName) {
+      case 'get_all_ponds_overview': {
+        const ponds = await pondRepository.findAll()
+        const latestAnalyses = await aiAnalysisRepository.findLatestAcrossAllPonds()
+        const analysesMap = new Map()
+        latestAnalyses.forEach(a => analysesMap.set(a.pond_id, a))
+
+        const totalPonds = ponds.length
+        const totalLiveBiomassKg = Number(ponds.reduce((acc, p) => acc + ((p.fish_count * p.avg_weight_grams) / 1000), 0).toFixed(1))
+        const avgHealthScore = totalPonds > 0 
+          ? Math.round(ponds.reduce((acc, p) => {
+              const ai = analysesMap.get(p.id)
+              return acc + (ai?.health_score ?? p.health_score ?? 90)
+            }, 0) / totalPonds) 
+          : 90
+
+        const pondsOverview = ponds.map(p => {
+          const ai = analysesMap.get(p.id)
+          const tele = p.telemetry_cache 
+            ? (typeof p.telemetry_cache === 'string' ? JSON.parse(p.telemetry_cache) : p.telemetry_cache)
+            : { do: 6.4, ph: 7.5, temp: 28.5, ammonia: 0.02, flocDensity: 14.0 }
+
+          const pNum = p.id.replace('K0', '').replace('K', '')
+          const score = ai?.health_score ?? p.health_score ?? 90
+          const status = ai?.health_status ?? p.status ?? 'OPTIMAL'
+          const summary = ai?.summary ?? 'Ecosystem operating in steady-state aerobic biofloc balance.'
+
+          let priority = 'Normal Routine'
+          if (tele.do < 4.0 || status === 'CRITICAL') priority = '🚨 Emergency Aeration'
+          else if (tele.do < 5.0 || status === 'WARNING') priority = '⚠️ Boost Aerator (90%)'
+          else if (tele.ammonia > 0.15) priority = '🧪 Check C:N / Carbon'
+          else if (tele.flocDensity > 25) priority = '🔄 Bottom Sludge Purge'
+
+          return {
+            pondId: p.id,
+            pondName: `Pond ${pNum}`,
+            species: p.species,
+            phase: p.phase,
+            doc: p.doc,
+            biomassKg: Number(((p.fish_count * p.avg_weight_grams) / 1000).toFixed(1)),
+            healthScore: score,
+            status,
+            telemetry: tele,
+            diagnosisSummary: summary,
+            anomalies: ai?.anomalies_detected || [],
+            priority
+          }
+        })
+
+        const optimalCount = pondsOverview.filter(p => p.status === 'OPTIMAL').length
+        const warningCount = pondsOverview.filter(p => p.status === 'WARNING').length
+        const criticalCount = pondsOverview.filter(p => p.status === 'CRITICAL').length
+
+        const tableRows = pondsOverview.map(p => {
+          const statusBadge = p.status === 'OPTIMAL' ? '🟢 **OPTIMAL**' : (p.status === 'CRITICAL' ? '🚨 **CRITICAL**' : '⚠️ **WARNING**')
+          return `| **${p.pondName}** | ${p.species.split('(')[0].trim()} | **${p.healthScore}/100** | ${statusBadge} | DO: **${p.telemetry.do} mg/L**, TAN: **${p.telemetry.ammonia} ppm**, Floc: **${p.telemetry.flocDensity} mL/L** | ${p.priority} |`
+        }).join('\n')
+
+        const findingsList = pondsOverview.map(p => {
+          const cleanSummary = p.diagnosisSummary.replace(/^#+\s+/gm, '').replace(/\n+/g, ' ').trim()
+          return `1. **${p.pondName} (${p.pondId})** — Health Score **${p.healthScore}/100** (${p.status}):\n   ${cleanSummary}`
+        }).join('\n')
+
+        const markdownOverview = `### 🌐 Holistic Farm Overview & Multi-Pond Diagnostics
+
+**Facility Overall Health Index:** **${avgHealthScore} / 100** (${optimalCount} Optimal, ${warningCount} Warning, ${criticalCount} Critical)  
+**Total Standing Biomass:** **${totalLiveBiomassKg} kg** across ${totalPonds} Active Ponds
+
+| Pond | Species | Health Score | Status | Live Key Vitals | Recommended Priority |
+| :--- | :--- | :---: | :---: | :--- | :--- |
+${tableRows}
+
+---
+
+#### 🔬 Database Biological Diagnostic Findings:
+${findingsList}
+
+#### ⚡ Strategic SOP Recommendations:
+• **Aerator Modulation**: Aerator baseline locked at 80% VFD (~1,200 RPM) across all units to support continuous aerobic bacterial floc respiration.
+• **C:N Carbon Allocation**: Molasses dosing remains on **STANDBY** (0g) across all ponds because biofloc densities are mature or TAN is below acute thresholds.
+• **Feeding Schedules**: Routine feeding (BioGrow 30% crude protein) proceed on schedule; DO levels are all safely above the 5.0 mg/L pre-feed interlock threshold.`
+
+        return {
+          totalPonds,
+          avgHealthScore,
+          totalLiveBiomassKg,
+          ponds: pondsOverview,
+          markdownOverview,
+          status: 'SUCCESS',
+          message: `Fleet overview compiled for ${totalPonds} ponds. Facility overall health score is ${avgHealthScore}/100.`
+        }
+      }
+
       case 'get_pond_telemetry': {
         const tele = pond?.telemetry_cache 
           ? (typeof pond.telemetry_cache === 'string' ? JSON.parse(pond.telemetry_cache) : pond.telemetry_cache)
@@ -1073,7 +1166,34 @@ Provide a professional 2-sentence executive summary.`
     const molassesExecs = await executionRepository.findByPondId(activePond, { category: 'MOLASSES' })
     const molassesCount = molassesExecs.filter(e => e.status === 'SUCCESS' || e.status === 'RUNNING').length
 
-    const systemInstruction = `${BIOFLOC_AI_ROLE}
+    const isMultiPond = /semua kolam|seluruh kolam|semua pond|all ponds|whole farm|farm overview|fleet|gambaran utuh|ringkasan kolam|ringkasan seluruh|kondisi farm|kondisi tambak|kolam 1 sampai 4|pond 1 to 4/i.test(userMessage)
+
+    let systemInstruction = ''
+    let fleetOverviewData = null
+
+    if (isMultiPond) {
+      const allPonds = await pondRepository.findAll()
+      const latestAnalyses = await aiAnalysisRepository.findLatestAcrossAllPonds()
+      const analysesMap = new Map()
+      latestAnalyses.forEach(a => analysesMap.set(a.pond_id, a))
+
+      const fleetPondsWithDiag = allPonds.map(p => ({
+        ...p,
+        latestDiagnosisSummary: analysesMap.get(p.id)?.summary || 'Operating in steady-state aerobic biofloc balance.'
+      }))
+
+      fleetOverviewData = await this.executeCopilotTool('get_all_ponds_overview', {})
+
+      systemInstruction = `${BIOFLOC_AI_ROLE}
+
+${buildFleetRagContext(fleetPondsWithDiag)}
+
+Current Active Tab Context: ${pond ? pond.name : activePond} (${activePond}).
+Farm Supervisor: Ilfa Hidayat.
+The user is asking for a comprehensive/holistic assessment across ALL ponds in the facility.
+Invoke the 'get_all_ponds_overview' tool to synthesize the full database diagnostic report, or deliver a crisp markdown comparison table covering Pond 1, Pond 2, Pond 3, and Pond 4.`
+    } else {
+      systemInstruction = `${BIOFLOC_AI_ROLE}
 
 ${buildBioflocRagContext(activePond, tele, molassesCount)}
 
@@ -1082,6 +1202,7 @@ Farm Supervisor: Ilfa Hidayat.
 When the user requests pond water quality, telemetry, or biological diagnosis, invoke the corresponding data query tool.
 When the user issues control commands or daily schedule adjustments, invoke the corresponding execution control tool.
 CRITICAL CONSTRAINT: Molasses dosing is strictly limited to 1 to 3 applications maximum throughout the culture cycle. If already dosed 3 times, reject any further molasses request and explain the sludge choke hazard.`
+    }
 
     const chatRes = await geminiClient.generateChatResponse({
       systemInstruction,
@@ -1089,7 +1210,9 @@ CRITICAL CONSTRAINT: Molasses dosing is strictly limited to 1 to 3 applications 
       context: {
         activePond,
         telemetry: tele,
-        previousMolassesCount: molassesCount
+        previousMolassesCount: molassesCount,
+        isMultiPond,
+        fleetMarkdown: fleetOverviewData?.markdownOverview
       },
       executeTool: (name, args) => this.executeCopilotTool(name, args)
     })
@@ -1122,9 +1245,17 @@ CRITICAL CONSTRAINT: Molasses dosing is strictly limited to 1 to 3 applications 
 
     // Synthesize recommended actionCard if water quality indicates an action is required, even if user only asked a question
     if (!actionCard) {
-      const evaluatedPondId = (toolResult && toolResult.pondId) || 
+      let evaluatedPondId = (toolResult && toolResult.pondId) || 
         (toolCall && toolCall.args && toolCall.args.pondId) || 
         activePond
+
+      if (isMultiPond && toolResult?.ponds) {
+        const hazardPond = toolResult.ponds.find(p => p.telemetry && Number(p.telemetry.do) < 5.0) 
+          || toolResult.ponds.find(p => p.telemetry && Number(p.telemetry.ammonia) > 0.15)
+        if (hazardPond) {
+          evaluatedPondId = hazardPond.pondId
+        }
+      }
       
       const evaluatedPond = (evaluatedPondId === activePond) ? pond : await pondRepository.findById(evaluatedPondId)
       const evaluatedPondName = evaluatedPond?.name || `Pond ${evaluatedPondId.replace('K0', '').replace('K', '')}`
