@@ -164,7 +164,7 @@ Respond strictly in structured JSON schema.`
     if (immediateAction && immediateAction.needed) {
       console.log(`│ • Immediate Act : ⚡ ${immediateAction.category} -> ${immediateAction.command} (${immediateAction.dosage}) [Dispatched]`)
     } else {
-      console.log(`│ • Immediate Act : Standby (Semua parameter aman dalam ambang batas)`)
+      console.log(`│ • Immediate Act : Standby (All parameters optimal within safe thresholds)`)
     }
     console.log(`│ • Database Save : ai_analyses (Record #${analysisRecord.id}) & pond health_score updated`)
 
