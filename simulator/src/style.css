@@ -1,248 +1,434 @@
 :root {
-  --esp-bg-light: #f8fafc;
-  --esp-card-bg: #ffffff;
-  --esp-card-border: #e2e8f0;
-  --esp-text-primary: #0f172a;
-  --esp-text-secondary: #475569;
-  --esp-text-muted: #94a3b8;
-  --esp-accent: #2563eb;
-  --esp-success: #10b981;
-  --esp-warning: #f59e0b;
-  --esp-danger: #ef4444;
-  --esp-info: #0284c7;
-  --led-green: #10b981;
-  --led-amber: #f59e0b;
-  --led-red: #ef4444;
-  --led-blue: #3b82f6;
-  --led-cyan: #06b6d4;
-  --led-purple: #8b5cf6;
+  --sim-bg: #f8fafc;
+  --sim-card-bg: #ffffff;
+  --sim-text-title: #1e293b;
+  --sim-text-sub: #64748b;
+  --sim-tile-bg: #f8fafc;
+  --sim-tile-border: #e2e8f0;
 }
 
 body {
-  background-color: var(--esp-bg-light);
-  color: var(--esp-text-primary);
+  background-color: var(--sim-bg);
+  color: var(--sim-text-title);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   min-height: 100vh;
 }
 
-/* Light Theme Modern Card Styling */
-.card-iot {
-  background-color: var(--esp-card-bg);
-  border: 1px solid var(--esp-card-border);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
-}
+/* ==========================================================================
+   SIMULATOR CARD (Matching Reference Image)
+   ========================================================================== */
 
-.card-iot:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
-}
-
-.card-accent-bar {
-  height: 4px;
-  width: 100%;
-}
-.accent-k01 { background: linear-gradient(90deg, #2563eb, #38bdf8); }
-.accent-k02 { background: linear-gradient(90deg, #059669, #34d399); }
-.accent-k03 { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
-.accent-k04 { background: linear-gradient(90deg, #d97706, #fbbf24); }
-
-.card-iot .card-header {
+.mydevices-card {
   background-color: #ffffff;
-  border-bottom: 1px solid #f1f5f9;
-  padding: 0.75rem 1rem;
-  font-weight: 600;
-  color: var(--esp-text-primary);
-}
-
-/* Pulsing Online Indicator */
-.pulse-indicator-green {
-  width: 8px;
-  height: 8px;
-  background-color: #10b981;
-  border-radius: 50%;
-  display: inline-block;
-  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-  }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-  }
-}
-
-/* Sensor Tiles - Pastel, Alive, Clean */
-.sensor-tile {
+  border: 2px solid #8b5cf6;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
-  border: 1px solid transparent;
 }
-.sensor-tile:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+.mydevices-card:hover {
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.1);
 }
-.sensor-label {
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: #64748b;
+
+.border-k01 { border-color: #6366f1 !important; }
+.border-k02 { border-color: #10b981 !important; }
+.border-k03 { border-color: #8b5cf6 !important; }
+.border-k04 { border-color: #f59e0b !important; }
+
+/* Status Dots */
+.status-dot-green {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  display: inline-block;
+}
+
+.status-dot-gray {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #94a3b8;
+  display: inline-block;
+}
+
+/* 1. Microcontroller / Processor Chip Badge */
+.processor-chip-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #38bdf8;
   display: flex;
   align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+  border: 1px solid #334155;
+  flex-shrink: 0;
+  position: relative;
 }
 
-.sensor-tile-do {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border-color: #bae6fd;
-}
-.sensor-tile-ammonia {
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-  border-color: #fde68a;
-}
-.sensor-tile-ph {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  border-color: #bbf7d0;
-}
-.sensor-tile-tss {
-  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
-  border-color: #e9d5ff;
+.processor-chip-badge.offline {
+  background: #cbd5e1;
+  color: #64748b;
+  border-color: #cbd5e1;
+  box-shadow: none;
 }
 
-/* Actuator Matrix Rows */
-.actuator-row {
-  transition: all 0.25s ease-in-out;
-  border: 1px solid transparent;
+.processor-chip-badge .chip-pulse {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10b981;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 6px #10b981;
 }
 
-.actuator-row.bg-light-subtle {
-  background-color: #f8fafc;
-  border-color: #f1f5f9;
+/* 2. Top-Right Power Button Toggle */
+.btn-power-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-family: monospace;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all 0.2s ease;
+  user-select: none;
 }
-.actuator-row.bg-light-subtle:hover {
+
+.btn-power-toggle.is-on {
+  background-color: #ecfdf5;
+  border-color: #10b981;
+  color: #047857;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.25);
+}
+
+.btn-power-toggle.is-on:hover {
+  background-color: #d1fae5;
+}
+
+.btn-power-toggle.is-off {
   background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
 }
 
-.actuator-active-cyan {
-  background: linear-gradient(90deg, #ecfeff 0%, #f0fdfa 100%);
-  border-color: #99f6e4 !important;
-  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.08);
-}
-.actuator-active-green {
-  background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 100%);
-  border-color: #86efac !important;
-  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.08);
-}
-.actuator-active-amber {
-  background: linear-gradient(90deg, #fffbeb 0%, #fef3c7 100%);
-  border-color: #fde68a !important;
-  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.08);
-}
-.actuator-active-blue {
-  background: linear-gradient(90deg, #eff6ff 0%, #dbeafe 100%);
-  border-color: #bfdbfe !important;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+.btn-power-toggle.is-off:hover {
+  background-color: #e2e8f0;
+  color: #334155;
 }
 
-.led-indicator.on-green {
-  background-color: var(--led-green);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
-  border-color: #059669;
+/* 3. Condition Selector Group (OKE, WARN, DANGER) */
+.condition-selector-group {
+  display: flex;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 2.5px;
+  gap: 3px;
 }
 
-.led-indicator.on-amber {
-  background-color: var(--led-amber);
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
-  border-color: #d97706;
+.condition-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 5px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: monospace;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
-.led-indicator.on-red {
-  background-color: var(--led-red);
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
-  border-color: #dc2626;
+.condition-btn:hover:not(:disabled) {
+  color: #1e293b;
+  background-color: rgba(255, 255, 255, 0.6);
 }
 
-.led-indicator.on-blue {
-  background-color: var(--led-blue);
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
-  border-color: #2563eb;
+.condition-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.led-indicator.on-cyan {
-  background-color: var(--led-cyan);
-  box-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
-  border-color: #0891b2;
+.condition-btn.active-ok {
+  background-color: #10b981;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.35);
 }
 
-.led-indicator.on-purple {
-  background-color: var(--led-purple);
-  box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
-  border-color: #7c3aed;
+.condition-btn.active-warning {
+  background-color: #f59e0b;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.35);
 }
 
-/* Light Terminal Console for Traffic Inspector */
-.terminal-box-light {
+.condition-btn.active-danger {
+  background-color: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(239, 68, 68, 0.35);
+}
+
+.condition-btn.active-custom {
+  background-color: #6366f1;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(99, 102, 241, 0.35);
+}
+
+/* 4. Manual Transmit Button */
+.btn-manual-tx {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 11px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: monospace;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 4px rgba(99, 102, 241, 0.25);
+}
+
+.btn-manual-tx.btn-pending-tx {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
+  animation: pulse-pending-btn 1.6s infinite;
+}
+
+@keyframes pulse-pending-btn {
+  0%, 100% {
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.85);
+    transform: scale(1.02);
+  }
+}
+
+.btn-manual-tx:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.btn-manual-tx:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-manual-tx:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 5. Metric Tiles (Sensors & Actuators) */
+.metric-tile {
   background-color: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 0.82rem;
-  max-height: 340px;
-  overflow-y: auto;
-}
-
-.terminal-line-light {
   padding: 6px 10px;
-  border-bottom: 1px solid #f1f5f9;
-  word-break: break-all;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 54px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.terminal-line-light:hover {
+.metric-tile:hover {
   background-color: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
-/* Animations */
-@keyframes spin {
-  100% {
-    transform: rotate(360deg);
-  }
+.metric-tile-label {
+  font-size: 0.71rem;
+  font-weight: 500;
+  color: #64748b;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metric-tile-value {
+  font-family: 'SFMono-Regular', Consolas, Menlo, monospace;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.15;
+}
+
+/* Mini Trigger Button inside tile (+Feed, +Molasses, +Siphon) */
+.btn-mini-act {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.62rem;
+  font-family: monospace;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.btn-mini-act:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* Active Actuator Border Glows */
+.actuator-active-feeder {
+  background-color: #f0fdf4 !important;
+  border-color: #86efac !important;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.2);
+}
+
+.actuator-active-molasses {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
+}
+
+.actuator-active-siphon {
+  background-color: #f0f9ff !important;
+  border-color: #7dd3fc !important;
+  box-shadow: 0 0 8px rgba(14, 165, 233, 0.2);
+}
+
+/* Mini Progress Bar for Actuators */
+.progress-mini {
+  height: 4px;
+  border-radius: 2px;
+  background-color: #e2e8f0;
+  overflow: hidden;
+}
+
+/* 6. Action Animations for Feed, Molasses, & Siphon */
+@keyframes feedPelletDrop {
+  0% { transform: translateY(-3px) scale(0.9); opacity: 0.7; }
+  50% { transform: translateY(0px) scale(1.15); opacity: 1; }
+  100% { transform: translateY(3px) scale(0.9); opacity: 0.7; }
+}
+
+.animate-feed-running {
+  display: inline-block;
+  animation: feedPelletDrop 0.5s infinite alternate ease-in-out;
+}
+
+@keyframes molassesDrip {
+  0% { transform: scale(0.9); filter: drop-shadow(0 0 2px rgba(245, 158, 11, 0.4)); }
+  50% { transform: scale(1.2) translateY(1.5px); filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.8)); }
+  100% { transform: scale(0.9); filter: drop-shadow(0 0 2px rgba(245, 158, 11, 0.4)); }
+}
+
+.animate-molasses-running {
+  display: inline-block;
+  animation: molassesDrip 0.7s infinite ease-in-out;
+}
+
+@keyframes siphonWave {
+  0% { transform: translateY(-2px); filter: drop-shadow(0 0 2px rgba(14, 165, 233, 0.4)); }
+  50% { transform: translateY(2px) scale(1.2); filter: drop-shadow(0 0 7px rgba(14, 165, 233, 0.85)); }
+  100% { transform: translateY(-2px); filter: drop-shadow(0 0 2px rgba(14, 165, 233, 0.4)); }
+}
+
+.animate-siphon-running {
+  display: inline-block;
+  animation: siphonWave 0.6s infinite ease-in-out;
+}
+
+/* Rotating Animations (Aerator & Transmit spin) */
+@keyframes spinFast {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .animate-spin-fast {
-  animation: spin 0.8s linear infinite;
+  animation: spinFast 0.6s linear infinite;
+  display: inline-block;
 }
 
-.animate-spin-slow {
-  animation: spin 2.5s linear infinite;
+.animate-spin {
+  animation: spinFast 1.5s linear infinite;
+  display: inline-block;
 }
 
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+/* Striped Fast Progress Animation */
+@keyframes progressStripes {
+  0% { background-position: 1rem 0; }
+  100% { background-position: 0 0; }
 }
 
-.animate-pulse {
-  animation: pulse-subtle 1.2s infinite ease-in-out;
+.progress-bar-animated-fast {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.25) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0.25) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 1rem 1rem;
+  animation: progressStripes 0.6s linear infinite;
 }
 
-@keyframes bounce-subtle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+/* 7. Battery Indicator Bar at Bottom (No RSSI) */
+.battery-pill-graphic {
+  width: 24px;
+  height: 13px;
+  border: 1.5px solid #64748b;
+  border-radius: 3px;
+  padding: 1px;
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  margin-right: 4px;
 }
 
-.animate-bounce {
-  animation: bounce-subtle 0.8s infinite ease-in-out;
+.battery-pill-graphic::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  background-color: #64748b;
+  border-radius: 0 1px 1px 0;
 }
 
-/* Custom modern scrollbars */
+.battery-pill-fill {
+  height: 100%;
+  background-color: #84cc16;
+  border-radius: 1.5px;
+}
+
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -256,4 +442,25 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Modal Interaction Polish */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.transition-all {
+  transition: all 0.15s ease-in-out;
+}
+
+.form-range {
+  cursor: pointer;
+}
+
+.form-range::-webkit-slider-thumb {
+  cursor: grab;
+}
+
+.form-range::-webkit-slider-thumb:active {
+  cursor: grabbing;
 }

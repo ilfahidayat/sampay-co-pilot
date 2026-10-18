@@ -17,7 +17,7 @@ const { showToast } = useToast()
 
 const handleScenario = (type, title) => {
   applyScenario(type)
-  showToast(`Demo Scenario Active: ${title} on Pond #4`, 'warning', 4000)
+  showToast(`Demo Scenario Active: ${title} on Pond 4`, 'warning', 4000)
 }
 </script>
 

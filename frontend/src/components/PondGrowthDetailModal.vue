@@ -289,11 +289,11 @@ const svgPathString = computed(() => {
               </div>
               <div class="comp-row">
                 <span class="lbl">Initial Fingerling Count:</span>
-                <span class="val">{{ pond.initialFishCount?.toLocaleString() || pond.fishCount?.toLocaleString() }} ekor</span>
+                <span class="val">{{ pond.initialFishCount?.toLocaleString() || pond.fishCount?.toLocaleString() }} fish</span>
               </div>
               <div class="comp-row">
                 <span class="lbl">Initial Weight / Size:</span>
-                <span class="val">{{ pond.initialWeightGrams || 15 }} g/ekor</span>
+                <span class="val">{{ pond.initialWeightGrams || 15 }} g / fish</span>
               </div>
               <div class="comp-row">
                 <span class="lbl">Initial Total Biomass:</span>
@@ -335,34 +335,36 @@ const svgPathString = computed(() => {
             <Clock :size="14" class="text-sky" />
             <span class="sampling-title font-display">Sampling Log & Growth Milestones</span>
           </div>
-          <table class="sampling-table font-mono">
-            <thead>
-              <tr>
-                <th>Culture Day (DOC)</th>
-                <th>Sampled ABW</th>
-                <th>Estimated Biomass</th>
-                <th>Total Feed (Kg)</th>
-                <th>Observation Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(h, idx) in history" :key="idx">
-                <td class="font-bold text-sky">Day {{ h.doc }}</td>
-                <td>{{ h.abw }} grams</td>
-                <td>{{ h.biomassKg }} kg</td>
-                <td>{{ h.feedKg }} kg</td>
-                <td class="text-muted">{{ h.note }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="table-responsive-box">
+            <table class="sampling-table font-mono">
+              <thead>
+                <tr>
+                  <th>Culture Day (DOC)</th>
+                  <th>Sampled ABW</th>
+                  <th>Estimated Biomass</th>
+                  <th>Total Feed (Kg)</th>
+                  <th>Observation Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(h, idx) in history" :key="idx">
+                  <td class="font-bold text-sky">Day {{ h.doc }}</td>
+                  <td>{{ h.abw }} grams</td>
+                  <td>{{ h.biomassKg }} kg</td>
+                  <td>{{ h.feedKg }} kg</td>
+                  <td class="text-muted">{{ h.note }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <!-- Section: Mortality & Biosecurity Record (Audit Mortalitas Ikan) -->
+        <!-- Section: Mortality & Biosecurity Record (Fish Mortality Audit) -->
         <div class="mortality-audit-card">
           <div class="mortality-card-header">
             <div class="header-title-wrap">
               <Skull :size="16" class="text-rose" />
-              <span class="mortality-card-title font-display">Cycle Mortality & Survival Audit (Pencatatan Kematian)</span>
+              <span class="mortality-card-title font-display">Cycle Mortality & Biosecurity Audit Trail</span>
             </div>
             <button 
               id="btn-modal-log-mortality"
@@ -378,7 +380,7 @@ const svgPathString = computed(() => {
           <div class="mortality-kpi-row font-mono">
             <div class="m-kpi">
               <span class="m-kpi-lbl">Cumulative Deaths</span>
-              <span class="m-kpi-val text-rose">{{ cumulativeMortality.toLocaleString() }} ekor</span>
+              <span class="m-kpi-val text-rose">{{ cumulativeMortality.toLocaleString() }} fish</span>
             </div>
             <div class="m-kpi">
               <span class="m-kpi-lbl">Survival Rate (SR)</span>
@@ -390,7 +392,7 @@ const svgPathString = computed(() => {
             </div>
             <div class="m-kpi">
               <span class="m-kpi-lbl">Current Live Population</span>
-              <span class="m-kpi-val text-emerald">{{ pond.fishCount?.toLocaleString() }} ekor</span>
+              <span class="m-kpi-val text-emerald">{{ pond.fishCount?.toLocaleString() }} fish</span>
             </div>
           </div>
 
@@ -399,19 +401,19 @@ const svgPathString = computed(() => {
             <table class="mortality-table font-mono">
               <thead>
                 <tr>
-                  <th>Timestamp</th>
-                  <th>Count</th>
-                  <th>Avg Wt</th>
-                  <th>Biomass Lost</th>
-                  <th>Observed Cause</th>
-                  <th>Disposal Method</th>
-                  <th>Notes</th>
+                  <th style="min-width: 130px;">Timestamp</th>
+                  <th style="min-width: 90px;">Dead Count</th>
+                  <th style="min-width: 90px;">Avg Weight</th>
+                  <th style="min-width: 100px;">Biomass Lost</th>
+                  <th style="min-width: 160px;">Diagnosed Cause</th>
+                  <th style="min-width: 160px;">Biosecurity Disposal</th>
+                  <th style="min-width: 180px;">Technical Notes</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="log in mortalityList" :key="log.id">
                   <td class="text-muted">{{ log.date }}</td>
-                  <td class="text-rose font-bold">-{{ log.count }} ekor</td>
+                  <td class="text-rose font-bold">-{{ log.count }} fish</td>
                   <td>{{ log.avgWeightGrams }} g</td>
                   <td class="text-rose font-bold">-{{ log.biomassLostKg }} kg</td>
                   <td>
@@ -434,7 +436,7 @@ const svgPathString = computed(() => {
       <div class="modal-footer">
         <div class="footer-left">
           <span class="footer-hint font-mono">
-            Cycle Action: Selesaikan siklus panen atau catat mortalitas harian
+            Cycle Operations: Execute commercial harvest, grading migration, or record daily mortality
           </span>
         </div>
         <div class="footer-actions">
@@ -483,8 +485,8 @@ const svgPathString = computed(() => {
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
   width: 100%;
-  max-width: 820px;
-  max-height: 90vh;
+  max-width: 1040px;
+  max-height: 88vh;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.16);
   display: flex;
   flex-direction: column;
@@ -589,11 +591,29 @@ const svgPathString = computed(() => {
 }
 
 .modal-body {
-  padding: 20px;
+  padding: 22px 24px;
   overflow-y: auto;
+  max-height: calc(88vh - 130px);
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+.table-responsive-box {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.sampling-table {
+  min-width: 680px;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mortality-table {
+  min-width: 760px;
+  width: 100%;
+  border-collapse: collapse;
 }
 
 /* 4 Growth KPIs Grid */

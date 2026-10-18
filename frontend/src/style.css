@@ -216,6 +216,13 @@ body {
   animation: pulse-ring 0.8s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
+.pulse-dot.offline {
+  background-color: var(--slate-400);
+}
+.pulse-dot.offline::after {
+  display: none;
+}
+
 @keyframes pulse-ring {
   0% { transform: scale(0.8); opacity: 0.8; }
   100% { transform: scale(2.4); opacity: 0; }
@@ -256,8 +263,11 @@ button {
   font-size: 0.82rem;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   box-shadow: 0 2px 4px rgba(5, 150, 105, 0.25);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 .btn-action-agree:hover {
   background: var(--emerald-700);
@@ -272,6 +282,12 @@ button {
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 .btn-action-cancel:hover {
   background: #e2e8f0;

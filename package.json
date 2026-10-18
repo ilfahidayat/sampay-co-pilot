@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "description": "Sampay Aquaculture Co-Pilot (SAC) Platform — Monorepo (Frontend, Simulator, Backend)",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "npm --prefix frontend run dev",
+    "dev": "node scripts/dev-all.js",
+    "dev:all": "node scripts/dev-all.js",
+    "start": "node scripts/dev-all.js",
+    "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:simulator": "npm --prefix simulator run dev",
-    "dev:backend": "npm --prefix backend run dev",
     "build:frontend": "npm --prefix frontend run build",
     "build:simulator": "npm --prefix simulator run build"
   }

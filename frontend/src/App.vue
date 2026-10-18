@@ -1,15 +1,13 @@
 <script setup>
-import { ref } from 'vue'
 import Sidebar from './components/Sidebar.vue'
 import TopHeader from './components/TopHeader.vue'
-import ScenarioSimulatorBar from './components/ScenarioSimulatorBar.vue'
+import SystemConfigModal from './components/SystemConfigModal.vue'
 import ToastContainer from './components/ToastContainer.vue'
+import { useSystemConfig } from './composables/useSystemConfig'
+import { useSidebar } from './composables/useSidebar'
 
-const isSimulatorOpen = ref(false)
-
-const toggleSimulator = () => {
-  isSimulatorOpen.value = !isSimulatorOpen.value
-}
+const { isConfigModalOpen, closeConfigModal, fetchSystemHealth } = useSystemConfig()
+const { isSidebarCollapsed } = useSidebar()
 </script>
 
 <template>
@@ -18,12 +16,9 @@ const toggleSimulator = () => {
     <Sidebar />
 
     <!-- Main Content Container with Fixed Top Header -->
-    <div class="main-content-wrapper">
+    <div class="main-content-wrapper" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
       <!-- Fixed Top Header Bar -->
-      <TopHeader 
-        :simulator-open="isSimulatorOpen" 
-        @toggle-simulator="toggleSimulator" 
-      />
+      <TopHeader />
 
       <!-- Content Area with proper top padding for fixed header -->
       <main class="page-body">
@@ -31,10 +26,11 @@ const toggleSimulator = () => {
       </main>
     </div>
 
-    <!-- Floating Scenario Simulator Drawer -->
-    <ScenarioSimulatorBar 
-      v-if="isSimulatorOpen" 
-      @close="isSimulatorOpen = false" 
+    <!-- Global System Configuration Modal -->
+    <SystemConfigModal 
+      :show="isConfigModalOpen" 
+      @close="closeConfigModal" 
+      @updated="fetchSystemHealth" 
     />
 
     <!-- Global Toast Container -->
@@ -55,6 +51,11 @@ const toggleSimulator = () => {
   flex-direction: column;
   min-width: 0;
   margin-left: 270px; /* Offset for fixed sidebar */
+  transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.main-content-wrapper.sidebar-collapsed {
+  margin-left: 76px;
 }
 
 .page-body {
@@ -100,10 +101,16 @@ const toggleSimulator = () => {
   .main-content-wrapper {
     margin-left: 240px;
   }
+  .main-content-wrapper.sidebar-collapsed {
+    margin-left: 76px;
+  }
 }
 
 @media (max-width: 768px) {
   .main-content-wrapper {
+    margin-left: 0;
+  }
+  .main-content-wrapper.sidebar-collapsed {
     margin-left: 0;
   }
   .page-body {

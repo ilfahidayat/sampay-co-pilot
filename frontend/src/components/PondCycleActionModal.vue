@@ -12,8 +12,10 @@ import {
   Fish, 
   Layers, 
   Sparkles,
-  DollarSign,
-  TrendingUp
+  TrendingUp,
+  RefreshCw,
+  Calendar,
+  CheckCircle2
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -25,10 +27,14 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'action-completed'])
 
-const { ponds, harvestPondCycle, transferPondFish } = usePonds()
+const { ponds, harvestPondCycle, transferPondFish, restartPondCycle } = usePonds()
 const { showToast } = useToast()
 
-const activeTab = ref('HARVEST') // 'HARVEST' | 'TRANSFER'
+const isHarvested = computed(() => {
+  return props.pond.cycleStatus === 'HARVESTED' || props.pond.cycleStatus === 'TRANSFERRED' || props.pond.fishCount === 0
+})
+
+const activeTab = ref(isHarvested.value ? 'RESTOCK' : 'HARVEST') // 'HARVEST' | 'TRANSFER' | 'RESTOCK'
 
 // Current biomass
 const currentBiomassKg = computed(() => {
@@ -40,46 +46,46 @@ const harvestType = ref('FULL') // 'FULL' | 'PARTIAL'
 const harvestKg = ref(currentBiomassKg.value)
 const harvestCount = ref(props.pond.fishCount)
 const harvestAbw = ref(props.pond.avgWeightGrams)
-const harvestNotes = ref('Cycle harvest — commercial market delivery')
+const harvestNotes = ref('Commercial market delivery harvest')
+const isHarvesting = ref(false)
 
-// Recalculate if harvest type changes
 const setHarvestPreset = (type) => {
   harvestType.value = type
   if (type === 'FULL') {
     harvestKg.value = currentBiomassKg.value
     harvestCount.value = props.pond.fishCount
   } else {
-    // 50% partial thinning
     harvestCount.value = Math.round(props.pond.fishCount * 0.5)
     harvestKg.value = Math.round(currentBiomassKg.value * 0.5)
   }
 }
 
-// Harvest FCR projection
 const estimatedHarvestFcr = computed(() => {
   const netGain = Math.max(1, harvestKg.value - (props.pond.initialBiomassKg || 100))
   return Number(((props.pond.cumulativeFeedKg || 500) / netGain).toFixed(2))
 })
 
-const handleExecuteHarvest = () => {
+const handleExecuteHarvest = async () => {
   if (harvestKg.value <= 0 || harvestCount.value <= 0) {
     showToast('⚠️ Please enter a valid harvest weight and count', 'warning')
     return
   }
 
-  const success = harvestPondCycle(props.pond.id, {
+  isHarvesting.value = true
+  const success = await harvestPondCycle(props.pond.id, {
     type: harvestType.value,
     harvestKg: Number(harvestKg.value),
     harvestCount: Number(harvestCount.value),
     harvestAbw: Number(harvestAbw.value),
     notes: harvestNotes.value
   })
+  isHarvesting.value = false
 
   if (success) {
     showToast(
       harvestType.value === 'FULL'
-        ? `🏆 Full Harvest Complete: ${harvestKg.value.toLocaleString()} kg harvested from ${props.pond.name}!`
-        : `⚖️ Partial Harvest: ${harvestKg.value.toLocaleString()} kg removed from ${props.pond.name}.`,
+        ? `🏆 Full Harvest Complete: ${harvestKg.value.toLocaleString()} kg harvested from ${props.pond.name}. Saved to Database!`
+        : `⚖️ Partial Thinning: ${harvestKg.value.toLocaleString()} kg removed from ${props.pond.name}.`,
       'success'
     )
     emit('action-completed', { type: 'HARVEST', pondId: props.pond.id })
@@ -88,14 +94,14 @@ const handleExecuteHarvest = () => {
 }
 
 // === TAB 2: TRANSFER STATE ===
-// Filter available destination ponds (excluding current pond)
 const availableTargetPonds = computed(() => {
   return ponds.value.filter(p => p.id !== props.pond.id)
 })
 
 const targetPondId = ref(availableTargetPonds.value[0]?.id || '')
 const transferPercent = ref(100)
-const transferReason = ref('Grading size & progressive culture stage transfer')
+const transferReason = ref('Size grading and progressive culture stage migration')
+const isTransferring = ref(false)
 
 const transferCount = computed(() => {
   return Math.round((props.pond.fishCount * transferPercent.value) / 100)
@@ -109,7 +115,7 @@ const selectedTargetPond = computed(() => {
   return ponds.value.find(p => p.id === targetPondId.value)
 })
 
-const handleExecuteTransfer = () => {
+const handleExecuteTransfer = async () => {
   if (!targetPondId.value) {
     showToast('⚠️ Please select a destination pond for transfer', 'warning')
     return
@@ -120,19 +126,56 @@ const handleExecuteTransfer = () => {
     return
   }
 
-  const success = transferPondFish(props.pond.id, targetPondId.value, {
+  isTransferring.value = true
+  const success = await transferPondFish(props.pond.id, targetPondId.value, {
     transferCount: transferCount.value,
     transferKg: transferKg.value,
     transferAbw: props.pond.avgWeightGrams,
     reason: transferReason.value
   })
+  isTransferring.value = false
 
   if (success) {
     showToast(
-      `🔄 Fish Transfer Executed: ${transferCount.value.toLocaleString()} fish (${transferKg.value} kg) moved to ${selectedTargetPond.value?.name}!`,
+      `🔄 Fish Transfer Executed: ${transferCount.value.toLocaleString()} fish (${transferKg.value} kg) moved to ${selectedTargetPond.value?.name}! Saved to Database.`,
       'success'
     )
     emit('action-completed', { type: 'TRANSFER', sourceId: props.pond.id, targetId: targetPondId.value })
+    emit('close')
+  }
+}
+
+// === TAB 3: RESTOCK / NEW CYCLE STATE ===
+const restockCount = ref(2000)
+const restockAbw = ref(20)
+const restockSpecies = ref(props.pond.species || 'Red Tilapia (Oreochromis niloticus)')
+const restockPhase = ref('Nursery / Fingerling Conditioning')
+const isRestocking = ref(false)
+
+const restockBiomassKg = computed(() => {
+  return Number(((restockCount.value * restockAbw.value) / 1000).toFixed(1))
+})
+
+const handleExecuteRestock = async () => {
+  if (restockCount.value <= 0) {
+    showToast('⚠️ Fingerling count must be greater than 0', 'warning')
+    return
+  }
+
+  isRestocking.value = true
+  const success = await restartPondCycle(props.pond.id, {
+    fishCount: restockCount.value,
+    avgWeightGrams: restockAbw.value,
+    initialBiomassKg: restockBiomassKg.value,
+    species: restockSpecies.value,
+    phase: restockPhase.value,
+    stockingDate: new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })
+  })
+  isRestocking.value = false
+
+  if (success) {
+    showToast(`🌱 New Culture Cycle initialized for ${props.pond.name} with ${restockCount.value.toLocaleString()} fingerlings!`, 'success')
+    emit('action-completed', { type: 'RESTOCK', pondId: props.pond.id })
     emit('close')
   }
 }
@@ -148,9 +191,17 @@ const handleExecuteTransfer = () => {
             <Award :size="20" class="text-amber" />
           </div>
           <div>
-            <h3 class="modal-title font-display">Manage & End Culture Cycle</h3>
+            <div class="title-row">
+              <h3 class="modal-title font-display">Manage & End Culture Cycle</h3>
+              <span 
+                class="status-tag font-mono"
+                :class="pond.cycleStatus === 'HARVESTED' ? 'harvested' : (pond.cycleStatus === 'TRANSFERRED' ? 'transferred' : 'active')"
+              >
+                {{ pond.cycleStatus || 'ACTIVE' }}
+              </span>
+            </div>
             <span class="modal-sub font-mono">
-              {{ pond.name }} • Current Stock: {{ pond.fishCount?.toLocaleString() }} fish (~{{ currentBiomassKg.toLocaleString() }} kg @ {{ pond.avgWeightGrams }}g)
+              {{ pond.name }} (ID: {{ pond.id }}) • Current Stock: <strong>{{ pond.fishCount?.toLocaleString() }} fish</strong> (~{{ currentBiomassKg.toLocaleString() }} kg @ {{ pond.avgWeightGrams }}g)
             </span>
           </div>
         </div>
@@ -168,7 +219,7 @@ const handleExecuteTransfer = () => {
           @click="activeTab = 'HARVEST'"
         >
           <Award :size="14" />
-          <span>Panen Ikan (Harvest Cycle)</span>
+          <span>Harvest Fish (Commercial Yield)</span>
         </button>
         <button 
           id="tab-btn-transfer"
@@ -177,11 +228,20 @@ const handleExecuteTransfer = () => {
           @click="activeTab = 'TRANSFER'"
         >
           <ArrowRightLeft :size="14" />
-          <span>Pindah Kolam (Transfer / Grading)</span>
+          <span>Fish Grading & Transfer</span>
+        </button>
+        <button 
+          id="tab-btn-restock"
+          class="tab-btn" 
+          :class="{ active: activeTab === 'RESTOCK' }"
+          @click="activeTab = 'RESTOCK'"
+        >
+          <RefreshCw :size="14" />
+          <span>Start New Cycle / Restock</span>
         </button>
       </div>
 
-      <!-- Tab 1: HARVEST PANEL -->
+      <!-- TAB 1: HARVEST PANEL -->
       <div v-if="activeTab === 'HARVEST'" class="tab-body">
         <div class="mode-selector-grid font-mono">
           <button 
@@ -191,10 +251,10 @@ const handleExecuteTransfer = () => {
             @click="setHarvestPreset('FULL')"
           >
             <div class="mode-head">
-              <span class="mode-title">Panen Total (Full Harvest)</span>
+              <span class="mode-title">Full Cycle Harvest</span>
               <span class="badge badge-emerald">Complete Cycle</span>
             </div>
-            <p class="mode-desc">Akhiri seluruh siklus budidaya kolam, kuras seluruh biomassa ikan (100%), hitung FCR final dan kosongkan kolam untuk sanitasi/tebar baru.</p>
+            <p class="mode-desc">Harvest 100% of live biomass, finalize cycle FCR, and set pond status to HARVESTED in MySQL database ready for sanitation.</p>
           </button>
 
           <button 
@@ -204,10 +264,10 @@ const handleExecuteTransfer = () => {
             @click="setHarvestPreset('PARTIAL')"
           >
             <div class="mode-head">
-              <span class="mode-title">Panen Parsial (Thinning)</span>
-              <span class="badge badge-sky">Selective Reduction</span>
+              <span class="mode-title">Partial Harvest (Thinning)</span>
+              <span class="badge badge-sky">Selective Thinning</span>
             </div>
-            <p class="mode-desc">Panen sebagian populasi untuk mengurangi kepadatan tebar (misal: 50%), sisa ikan tetap dipelihara di kolam hingga bobot maksimal.</p>
+            <p class="mode-desc">Selectively harvest a proportion of the stock (e.g. 50%) to reduce density, while the remaining stock continues culture to peak target weight.</p>
           </button>
         </div>
 
@@ -225,7 +285,7 @@ const handleExecuteTransfer = () => {
                 type="number" 
                 step="1" 
                 min="10" 
-                :max="currentBiomassKg" 
+                :max="Math.max(10, currentBiomassKg)" 
                 class="form-input font-mono"
               />
               <span class="unit-tag font-mono">kg</span>
@@ -244,10 +304,10 @@ const handleExecuteTransfer = () => {
                 type="number" 
                 step="50" 
                 min="10" 
-                :max="pond.fishCount" 
+                :max="Math.max(10, pond.fishCount)" 
                 class="form-input font-mono"
               />
-              <span class="unit-tag font-mono">ekor</span>
+              <span class="unit-tag font-mono">fish</span>
             </div>
           </div>
         </div>
@@ -269,16 +329,16 @@ const handleExecuteTransfer = () => {
         <!-- Harvest Projection Summary -->
         <div class="summary-box font-mono">
           <div class="sum-row">
-            <span class="s-lbl">Cycle Feed Used:</span>
+            <span class="s-lbl">Cumulative Cycle Feed:</span>
             <span class="s-val text-sky">{{ pond.cumulativeFeedKg || 0 }} kg</span>
           </div>
           <div class="sum-row">
-            <span class="s-lbl">Harvest Yield:</span>
+            <span class="s-lbl">Harvest Yield Biomass:</span>
             <span class="s-val text-emerald font-bold">{{ harvestKg }} kg ({{ harvestCount?.toLocaleString() }} fish)</span>
           </div>
           <div class="sum-row">
-            <span class="s-lbl">Projected Final FCR:</span>
-            <span class="s-val text-emerald font-bold">{{ estimatedHarvestFcr }} (Target &lt; 1.25)</span>
+            <span class="s-lbl">Projected Cycle FCR:</span>
+            <span class="s-val text-emerald font-bold">{{ estimatedHarvestFcr }} (Biofloc Superior &lt; 1.25)</span>
           </div>
         </div>
 
@@ -289,32 +349,33 @@ const handleExecuteTransfer = () => {
             type="button" 
             id="btn-confirm-harvest"
             class="btn-action harvest font-mono" 
+            :disabled="isHarvesting || pond.fishCount === 0"
             @click="handleExecuteHarvest"
           >
             <Award :size="15" />
-            <span>Confirm & Execute {{ harvestType === 'FULL' ? 'Full Harvest' : 'Partial Harvest' }}</span>
+            <span>{{ isHarvesting ? 'Processing Harvest...' : `Confirm & Execute ${harvestType === 'FULL' ? 'Full Harvest' : 'Partial Thinning'}` }}</span>
           </button>
         </div>
       </div>
 
-      <!-- Tab 2: TRANSFER / GRADING PANEL -->
-      <div v-else class="tab-body">
+      <!-- TAB 2: TRANSFER / GRADING PANEL -->
+      <div v-else-if="activeTab === 'TRANSFER'" class="tab-body">
         <div class="transfer-alert font-mono">
           <ArrowRightLeft :size="16" class="text-sky" />
           <div>
             <span class="alert-lead">Fish Grading & Pond Migration</span>
-            <p class="alert-desc">Pindahkan bibit atau ikan yang telah diseleksi (grading) dari {{ pond.name }} ke kolam tujuan berikutnya.</p>
+            <p class="alert-desc">Transfer sized fingerlings or graded grower batches from {{ pond.name }} into another destination pond. Both pond stocks will be atomically synchronized in MySQL.</p>
           </div>
         </div>
 
         <!-- Destination Pond Selection -->
         <div class="form-group font-mono">
           <label class="form-label" for="target-pond">
-            <span>Select Destination Pond (Kolam Tujuan)</span>
+            <span>Select Destination Pond</span>
           </label>
           <select id="target-pond" v-model="targetPondId" class="form-select font-sans">
             <option v-for="p in availableTargetPonds" :key="p.id" :value="p.id">
-              {{ p.name }} (ID: {{ p.id }}) — Current: {{ p.fishCount?.toLocaleString() }} fish
+              {{ p.name }} (ID: {{ p.id }}) — Current Stock: {{ p.fishCount?.toLocaleString() }} fish (~{{ Math.round((p.fishCount * p.avgWeightGrams) / 1000) }} kg)
             </option>
           </select>
         </div>
@@ -347,53 +408,38 @@ const handleExecuteTransfer = () => {
               :class="{ active: transferPercent === 100 }"
               @click="transferPercent = 100"
             >
-              100% (Empty Pond - {{ pond.fishCount?.toLocaleString() }} fish)
+              100% (Empty Source — {{ pond.fishCount?.toLocaleString() }} fish)
             </button>
           </div>
         </div>
 
-        <!-- Reason -->
+        <!-- Notes -->
         <div class="form-group font-mono">
-          <label class="form-label" for="transfer-reason">
-            <span>Transfer Reason / Grading Note</span>
+          <label class="form-label" for="transfer-notes">
+            <span>Grading Reason & Operator Notes</span>
           </label>
           <input 
-            id="transfer-reason" 
+            id="transfer-notes" 
             v-model="transferReason" 
             type="text" 
             class="form-input font-sans" 
-            placeholder="e.g. Size grading > 85g to Grower B"
+            placeholder="e.g. Progressive size grading into Nursery 2"
           />
         </div>
 
-        <!-- Transfer Preview Grid -->
-        <div class="transfer-preview-grid font-mono">
-          <div class="preview-card from">
-            <span class="p-title">Source: {{ pond.id }}</span>
-            <div class="p-row">
-              <span>Remaining:</span>
-              <strong>{{ (pond.fishCount - transferCount).toLocaleString() }} fish</strong>
-            </div>
-            <div class="p-row">
-              <span>Status:</span>
-              <span :class="transferPercent === 100 ? 'text-amber' : 'text-emerald'">
-                {{ transferPercent === 100 ? 'Emptied (Transferred)' : 'Active (Thinned)' }}
-              </span>
-            </div>
+        <!-- Transfer Projection -->
+        <div class="summary-box font-mono">
+          <div class="sum-row">
+            <span class="s-lbl">Stock to Migrate:</span>
+            <span class="s-val text-sky font-bold">{{ transferCount.toLocaleString() }} fish ({{ transferKg }} kg @ {{ pond.avgWeightGrams }}g)</span>
           </div>
-
-          <div class="transfer-arrow">➔</div>
-
-          <div class="preview-card to">
-            <span class="p-title">Target: {{ selectedTargetPond?.id || '?' }}</span>
-            <div class="p-row">
-              <span>Receiving:</span>
-              <strong class="text-sky">+{{ transferCount.toLocaleString() }} fish ({{ transferKg }} kg)</strong>
-            </div>
-            <div class="p-row">
-              <span>New Total:</span>
-              <strong>{{ ((selectedTargetPond?.fishCount || 0) + transferCount).toLocaleString() }} fish</strong>
-            </div>
+          <div class="sum-row">
+            <span class="s-lbl">Source Pond Post-Transfer:</span>
+            <span class="s-val text-muted">{{ Math.max(0, pond.fishCount - transferCount).toLocaleString() }} fish remaining</span>
+          </div>
+          <div class="sum-row">
+            <span class="s-lbl">Destination {{ selectedTargetPond?.name }}:</span>
+            <span class="s-val text-emerald font-bold">{{ ((selectedTargetPond?.fishCount || 0) + transferCount).toLocaleString() }} total fish</span>
           </div>
         </div>
 
@@ -404,10 +450,108 @@ const handleExecuteTransfer = () => {
             type="button" 
             id="btn-confirm-transfer"
             class="btn-action transfer font-mono" 
+            :disabled="isTransferring || pond.fishCount === 0"
             @click="handleExecuteTransfer"
           >
             <ArrowRightLeft :size="15" />
-            <span>Execute Transfer ({{ transferCount.toLocaleString() }} Fish)</span>
+            <span>{{ isTransferring ? 'Processing Transfer...' : `Transfer ${transferCount.toLocaleString()} Fish to ${selectedTargetPond?.id || 'Target'}` }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 3: RESTOCK / START FRESH CYCLE PANEL -->
+      <div v-else class="tab-body">
+        <div class="transfer-alert restock font-mono">
+          <Sparkles :size="16" class="text-emerald" />
+          <div>
+            <span class="alert-lead">Restock & Initialize Fresh Culture Cycle</span>
+            <p class="alert-desc">Reset the pond to Day of Culture 1 (DOC 1), register fingerlings, and set status to ACTIVE in MySQL database.</p>
+          </div>
+        </div>
+
+        <div class="form-grid-2 font-mono">
+          <div class="form-group">
+            <label class="form-label" for="restock-count">
+              <span>Fingerling Stock Population (fish)</span>
+            </label>
+            <input 
+              id="restock-count" 
+              v-model.number="restockCount" 
+              type="number" 
+              step="100" 
+              min="100" 
+              class="form-input" 
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="restock-abw">
+              <span>Seed Body Weight (g / fish)</span>
+            </label>
+            <input 
+              id="restock-abw" 
+              v-model.number="restockAbw" 
+              type="number" 
+              step="1" 
+              min="1" 
+              class="form-input" 
+            />
+          </div>
+        </div>
+
+        <div class="form-grid-2 font-mono">
+          <div class="form-group">
+            <label class="form-label" for="restock-species">
+              <span>Fish Species / Strain</span>
+            </label>
+            <input 
+              id="restock-species" 
+              v-model="restockSpecies" 
+              type="text" 
+              class="form-input" 
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="restock-phase">
+              <span>Initial Growth Stage</span>
+            </label>
+            <select id="restock-phase" v-model="restockPhase" class="form-select font-sans">
+              <option value="Nursery / Fingerling Conditioning">Nursery / Fingerling Conditioning</option>
+              <option value="Grower Stage (Rapid Growth)">Grower Stage (Rapid Growth)</option>
+              <option value="Finisher Stage (Ready for Harvest)">Finisher Stage (Ready for Harvest)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-box font-mono">
+          <div class="sum-row">
+            <span class="s-lbl">Initial Stock Biomass:</span>
+            <span class="s-val text-emerald font-bold">{{ restockBiomassKg }} kg</span>
+          </div>
+          <div class="sum-row">
+            <span class="s-lbl">Stocking Density:</span>
+            <span class="s-val text-sky">{{ (restockBiomassKg / (pond.volumeM3 || 50)).toFixed(1) }} kg/m³</span>
+          </div>
+          <div class="sum-row">
+            <span class="s-lbl">Starting Survival Rate:</span>
+            <span class="s-val text-purple font-bold">100.0% SR (Reset)</span>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="tab-footer">
+          <button type="button" class="btn-cancel font-mono" @click="emit('close')">Cancel</button>
+          <button 
+            type="button" 
+            id="btn-confirm-restock"
+            class="btn-action restock font-mono" 
+            :disabled="isRestocking"
+            @click="handleExecuteRestock"
+          >
+            <Sparkles :size="15" />
+            <span>{{ isRestocking ? 'Initializing Cycle...' : `Initialize Fresh Cycle (${restockCount.toLocaleString()} Fish)` }}</span>
           </button>
         </div>
       </div>
@@ -424,7 +568,7 @@ const handleExecuteTransfer = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 1050;
   padding: 20px;
 }
 
@@ -445,7 +589,7 @@ const handleExecuteTransfer = () => {
 @keyframes modalPop {
   from {
     opacity: 0;
-    transform: scale(0.96) translateY(10px);
+    transform: scale(0.97) translateY(8px);
   }
   to {
     opacity: 1;
@@ -469,8 +613,8 @@ const handleExecuteTransfer = () => {
 }
 
 .icon-avatar {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 10px;
   background: var(--amber-50);
   border: 1px solid var(--amber-200);
@@ -480,11 +624,43 @@ const handleExecuteTransfer = () => {
   flex-shrink: 0;
 }
 
+.text-amber { color: #d97706; }
+.text-emerald { color: var(--emerald-600); }
+.text-sky { color: var(--sky-600); }
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .modal-title {
-  font-size: 1.08rem;
+  font-size: 1.05rem;
   font-weight: 800;
   color: var(--text-primary);
   line-height: 1.2;
+}
+
+.status-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.status-tag.active {
+  background: var(--emerald-50);
+  color: var(--emerald-700);
+  border: 1px solid var(--emerald-200);
+}
+.status-tag.harvested {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+.status-tag.transferred {
+  background: var(--sky-50);
+  color: var(--sky-700);
+  border: 1px solid var(--sky-200);
 }
 
 .modal-sub {
@@ -504,45 +680,50 @@ const handleExecuteTransfer = () => {
   justify-content: center;
   transition: all 0.15s ease;
 }
-
 .btn-close:hover {
-  background: #e2e8f0;
+  background: #f1f5f9;
   color: var(--text-primary);
 }
 
 /* Tab Header */
 .tab-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   background: var(--bg-surface-subtle);
   border-bottom: 1px solid var(--border-subtle);
-  padding: 0 16px;
-  gap: 8px;
+  padding: 4px;
+  gap: 4px;
 }
 
 .tab-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 12px 16px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-muted);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
   background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .tab-btn:hover {
   color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .tab-btn.active {
-  color: var(--sky-700);
-  border-bottom-color: var(--sky-600);
+  background: #ffffff;
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+/* Tab Body */
 .tab-body {
   padding: 20px;
   overflow-y: auto;
@@ -551,7 +732,7 @@ const handleExecuteTransfer = () => {
   gap: 16px;
 }
 
-/* Mode selector */
+/* Mode Selector Grid */
 .mode-selector-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -559,27 +740,27 @@ const handleExecuteTransfer = () => {
 }
 
 .mode-card {
-  text-align: left;
-  background: var(--bg-surface-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
   padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-medium);
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .mode-card:hover {
-  background: #ffffff;
   border-color: var(--sky-400);
+  background: var(--sky-50);
 }
 
 .mode-card.active {
-  background: #ffffff;
-  border-color: var(--sky-600);
-  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+  border-color: var(--emerald-500);
+  background: var(--emerald-50);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
 }
 
 .mode-head {
@@ -589,16 +770,30 @@ const handleExecuteTransfer = () => {
 }
 
 .mode-title {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 800;
   color: var(--text-primary);
 }
 
+.badge {
+  font-size: 0.58rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.badge-emerald {
+  background: var(--emerald-100);
+  color: var(--emerald-800);
+}
+.badge-sky {
+  background: var(--sky-100);
+  color: var(--sky-800);
+}
+
 .mode-desc {
-  font-size: 0.68rem;
-  color: var(--text-secondary);
+  font-size: 0.64rem;
+  color: var(--text-muted);
   line-height: 1.35;
-  font-family: var(--font-sans);
 }
 
 .form-grid-2 {
@@ -614,7 +809,7 @@ const handleExecuteTransfer = () => {
 }
 
 .form-label {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--text-secondary);
 }
@@ -640,23 +835,23 @@ const handleExecuteTransfer = () => {
   display: flex;
   align-items: center;
 }
-
 .input-with-unit .form-input {
   width: 100%;
-  padding-right: 40px;
+  padding-right: 45px;
 }
 
 .unit-tag {
   position: absolute;
   right: 10px;
   font-size: 0.68rem;
-  font-weight: 700;
   color: var(--text-muted);
+  font-weight: 700;
 }
 
+/* Summary Box */
 .summary-box {
-  background: linear-gradient(135deg, #f0fdf4 0%, #f0f9ff 100%);
-  border: 1px solid var(--emerald-200);
+  background: #f8fafc;
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 12px 14px;
   display: flex;
@@ -667,15 +862,16 @@ const handleExecuteTransfer = () => {
 .sum-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 0.72rem;
 }
 
 .s-lbl {
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .s-val {
-  font-weight: 700;
+  font-size: 0.78rem;
 }
 
 /* Transfer Alert */
@@ -685,30 +881,34 @@ const handleExecuteTransfer = () => {
   gap: 10px;
   background: var(--sky-50);
   border: 1px solid var(--sky-200);
-  padding: 10px 14px;
   border-radius: 10px;
+  padding: 12px 14px;
+}
+.transfer-alert.restock {
+  background: var(--emerald-50);
+  border-color: var(--emerald-200);
 }
 
 .alert-lead {
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 800;
-  color: var(--sky-900);
+  color: var(--text-primary);
+  display: block;
 }
 
 .alert-desc {
-  font-size: 0.68rem;
-  color: var(--sky-800);
-  font-family: var(--font-sans);
-  margin-top: 2px;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
 }
 
 .preset-buttons-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
 .preset-chip {
-  flex: 1;
   padding: 6px 10px;
   border-radius: 6px;
   border: 1px solid var(--border-medium);
@@ -719,54 +919,17 @@ const handleExecuteTransfer = () => {
   cursor: pointer;
   transition: all 0.15s ease;
 }
-
 .preset-chip:hover {
-  background: #f1f5f9;
+  background: var(--sky-50);
+  border-color: var(--sky-300);
 }
-
 .preset-chip.active {
   background: var(--sky-600);
-  color: #ffffff;
   border-color: var(--sky-600);
+  color: #ffffff;
 }
 
-.transfer-preview-grid {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--bg-surface-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 12px 14px;
-}
-
-.preview-card {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.7rem;
-}
-
-.p-title {
-  font-weight: 800;
-  color: var(--text-primary);
-  font-size: 0.74rem;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.p-row {
-  display: flex;
-  justify-content: space-between;
-}
-
-.transfer-arrow {
-  font-size: 1.2rem;
-  color: var(--sky-600);
-  font-weight: 800;
-}
-
+/* Tab Footer */
 .tab-footer {
   display: flex;
   justify-content: flex-end;
@@ -787,10 +950,7 @@ const handleExecuteTransfer = () => {
   cursor: pointer;
   transition: all 0.15s ease;
 }
-
-.btn-cancel:hover {
-  background: #f1f5f9;
-}
+.btn-cancel:hover { background: #f1f5f9; }
 
 .btn-action {
   display: flex;
@@ -807,27 +967,39 @@ const handleExecuteTransfer = () => {
 }
 
 .btn-action.harvest {
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.3);
 }
-
-.btn-action.harvest:hover {
+.btn-action.harvest:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(5, 150, 105, 0.4);
+  box-shadow: 0 4px 10px rgba(217, 119, 6, 0.4);
 }
 
 .btn-action.transfer {
   background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
-  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
+  box-shadow: 0 2px 6px rgba(14, 165, 233, 0.3);
+}
+.btn-action.transfer:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(14, 165, 233, 0.4);
 }
 
-.btn-action.transfer:hover {
+.btn-action.restock {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+}
+.btn-action.restock:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(2, 132, 199, 0.4);
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4);
+}
+
+.btn-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 600px) {
-  .mode-selector-grid, .form-grid-2 {
+  .mode-selector-grid, .form-grid-2, .preset-buttons-row, .tab-header {
     grid-template-columns: 1fr;
   }
 }

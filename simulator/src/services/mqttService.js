@@ -3,19 +3,19 @@ import mqtt from 'mqtt'
 class MqttService {
   constructor() {
     this.client = null
-    this.mode = 'dummy' // 'dummy' | 'real'
+    this.mode = 'real' // 'dummy' | 'real'
     this.isConnected = false
     this.listeners = new Map()
     this.messageLog = []
     this.config = {
-      brokerUrl: 'ws://localhost:9001',
-      clientId: 'esp32_aqua_cluster_' + Math.random().toString(16).substring(2, 8),
-      deviceId: 'ESP32-AQUA-01',
+      brokerUrl: 'wss://broker.emqx.io:8084/mqtt',
+      clientId: 'sac_aqua_cluster_' + Math.random().toString(16).substring(2, 8),
+      deviceId: 'sac/pond001',
       username: '',
       password: '',
-      telemetryTopic: 'esp32/+/telemetry',
-      commandTopic: 'esp32/+/commands',
-      eventTopic: 'esp32/+/events',
+      telemetryTopic: 'sac/+/telemetry',
+      commandTopic: 'sac/+/commands',
+      eventTopic: 'sac/+/events',
     }
 
     // Modern cross-tab browser communication bridge
@@ -25,15 +25,15 @@ class MqttService {
         this.broadcastChannel = new BroadcastChannel('sac_telemetry_bus')
         this.broadcastChannel.onmessage = (event) => {
           if (event.data && event.data.type === 'COMMAND') {
-            const targetDev = event.data.deviceId || event.data.device_id || 'ESP32-AQUA-01'
+            const targetDev = event.data.deviceId || event.data.device_id || event.data.target_pond || 'sac/pond001'
             const payload = event.data.payload || {
               action: event.data.action || event.data.command,
               params: event.data.params || {},
               command_id: event.data.command_id || `cmd-${Date.now()}`
             }
-            this.logTraffic('INCOMING (SERVER_CMD)', `esp32/${targetDev}/commands`, payload)
+            this.logTraffic('INCOMING (SERVER_CMD)', `${targetDev}/commands`, payload)
             this.emit('message', {
-              topic: `esp32/${targetDev}/commands`,
+              topic: `sac/${targetDev.toLowerCase()}/commands`,
               deviceId: targetDev,
               payload: payload,
               raw: JSON.stringify(payload)
@@ -85,7 +85,8 @@ class MqttService {
         this.isConnected = true
         this.emit('connect', { mode: 'real' })
         this.logTraffic('SYSTEM', 'MQTT', `Cluster connected to broker ${this.config.brokerUrl}`)
-        // Subscribe to all node commands wildcard
+        // Subscribe to both sac/+/commands and legacy esp32/+/commands wildcard
+        this.subscribe('sac/+/commands')
         this.subscribe('esp32/+/commands')
       })
 
@@ -97,9 +98,8 @@ class MqttService {
         } catch {
           parsed = messageStr
         }
-        // Extract deviceId from topic: esp32/{deviceId}/commands
         const parts = topic.split('/')
-        const deviceId = parts[1] || 'ESP32-AQUA-01'
+        const deviceId = parts[1] || 'sac/pond001'
 
         this.logTraffic('INCOMING', topic, parsed)
         this.emit('message', { topic, deviceId, payload: parsed, raw: messageStr })
@@ -188,7 +188,7 @@ class MqttService {
     }
 
     if (this.client && this.isConnected) {
-      this.client.publish(topic, payloadStr, { qos: 0 })
+      this.client.publish(topic, payloadStr, { qos: 0, retain: true })
       return true
     } else {
       return false

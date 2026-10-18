@@ -1,5 +1,6 @@
 <script setup>
-import { ref, nextTick, watch } from 'vue'
+import { ref, nextTick, watch, onMounted } from 'vue'
+import { marked } from 'marked'
 import { useCopilot } from '../composables/useCopilot'
 import { usePonds } from '../composables/usePonds'
 import { 
@@ -14,11 +15,24 @@ import {
   Sparkles
 } from 'lucide-vue-next'
 
-const { messages, isThinking, autoPilotMode, sendMessage, authorizeAction, cancelAction } = useCopilot()
+marked.setOptions({
+  breaks: true,
+  gfm: true
+})
+
+const { messages, isThinking, autoPilotMode, sendMessage, authorizeAction, cancelAction, triggerCriticalIssueAlert } = useCopilot()
 const { activePond } = usePonds()
 
 const inputMessage = ref('')
 const chatMessagesContainer = ref(null)
+const commandInputRef = ref(null)
+
+const focusInput = async () => {
+  await nextTick()
+  if (commandInputRef.value) {
+    commandInputRef.value.focus()
+  }
+}
 
 const scrollToBottom = async () => {
   await nextTick()
@@ -31,27 +45,38 @@ watch(messages, () => {
   scrollToBottom()
 }, { deep: true })
 
+watch(isThinking, (thinking) => {
+  if (!thinking) {
+    focusInput()
+  }
+})
+
+onMounted(() => {
+  focusInput()
+})
+
 const handleSend = () => {
-  if (!inputMessage.value.trim()) return
-  sendMessage(inputMessage.value)
+  if (!inputMessage.value.trim() || isThinking.value) return
+  const text = inputMessage.value
   inputMessage.value = ''
+  sendMessage(text)
   scrollToBottom()
+  focusInput()
 }
 
 const sendPromptPreset = (presetText) => {
   sendMessage(presetText)
   scrollToBottom()
+  focusInput()
 }
 
 const formatMarkdown = (text) => {
   if (!text) return ''
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/\n/g, '<br>')
+  try {
+    return marked.parse(text)
+  } catch (err) {
+    return text.replace(/\n/g, '<br>')
+  }
 }
 </script>
 
@@ -131,30 +156,51 @@ const formatMarkdown = (text) => {
             :class="{
               'status-pending': msg.actionCard.status === 'pending',
               'status-approved': msg.actionCard.status === 'approved',
-              'status-cancelled': msg.actionCard.status === 'cancelled'
+              'status-cancelled': msg.actionCard.status === 'cancelled',
+              'is-critical': msg.actionCard.type === 'EMERGENCY_HYPOXIA'
             }"
           >
             <div class="hitl-card-header">
               <div class="hitl-header-left">
                 <ShieldAlert class="hitl-icon" :size="18" />
-                <span class="hitl-title">Supervisor Authorization Required</span>
+                <span class="hitl-title">{{ msg.actionCard.title || 'Supervisor Authorization Required' }}</span>
               </div>
               <span 
                 class="badge"
                 :class="{
-                  'badge-amber': msg.actionCard.status === 'pending',
+                  'badge-amber': msg.actionCard.status === 'pending' && msg.actionCard.type !== 'EMERGENCY_HYPOXIA',
+                  'badge-rose': msg.actionCard.type === 'EMERGENCY_HYPOXIA' && msg.actionCard.status === 'pending',
                   'badge-emerald': msg.actionCard.status === 'approved',
-                  'badge-rose': msg.actionCard.status === 'cancelled'
+                  'badge-cancelled': msg.actionCard.status === 'cancelled'
                 }"
               >
-                {{ msg.actionCard.status === 'pending' ? 'PENDING APPROVAL' : (msg.actionCard.status === 'approved' ? 'APPROVED' : 'CANCELLED') }}
+                {{ msg.actionCard.status === 'pending' ? (msg.actionCard.type === 'EMERGENCY_HYPOXIA' ? 'CRITICAL MITIGATION' : 'PENDING APPROVAL') : (msg.actionCard.status === 'approved' ? 'APPROVED' : 'CANCELLED') }}
               </span>
             </div>
 
             <p class="hitl-desc">{{ msg.actionCard.description }}</p>
 
+            <!-- Parameters Grid if plan or mitigation -->
+            <div v-if="msg.actionCard.feedAmountKg || msg.actionCard.aeratorPowerPercent || msg.actionCard.molassesGrams" class="hitl-params-pill-grid font-mono">
+              <span v-if="msg.actionCard.feedAmountKg" class="param-tag feed">
+                🐟 Feed: <strong>{{ msg.actionCard.feedAmountKg }} kg</strong>
+              </span>
+              <span v-if="msg.actionCard.aeratorPowerPercent" class="param-tag aerate">
+                ⚡ Aerator: <strong>{{ msg.actionCard.aeratorPowerPercent }}% (~{{ Math.round((msg.actionCard.aeratorPowerPercent / 100) * 1500) }} RPM)</strong>
+              </span>
+              <span v-if="msg.actionCard.molassesGrams" class="param-tag molasses">
+                🧪 Molasses: <strong>{{ msg.actionCard.molassesGrams }} g</strong>
+              </span>
+            </div>
+
             <div class="hitl-meta font-mono">
               <span>Target Hardware: <strong>{{ msg.actionCard.targetDevice }}</strong></span>
+            </div>
+
+            <!-- Natural Language Guidance Hint -->
+            <div v-if="msg.actionCard.status === 'pending' && msg.actionCard.hint" class="hitl-guidance-note font-mono">
+              <span class="note-bulb">💡</span>
+              <span>{{ msg.actionCard.hint }}</span>
             </div>
 
             <!-- Action Buttons for Supervisor -->
@@ -163,29 +209,31 @@ const formatMarkdown = (text) => {
                 id="btn-hitl-approve"
                 class="btn-action-agree"
                 @click="authorizeAction(msg.actionCard)"
+                title="Authorize and dispatch command directly to hardware and execution schedule"
               >
-                <Check :size="16" />
-                <span>✓ APPROVE & DISPATCH</span>
+                <Check :size="14" class="btn-icon" />
+                <span>APPROVE & DISPATCH TO EXECUTION</span>
               </button>
 
               <button 
                 id="btn-hitl-cancel"
                 class="btn-action-cancel"
                 @click="cancelAction(msg.actionCard)"
+                title="Reject and keep actuators on standby"
               >
-                <X :size="15" />
-                <span>CANCEL</span>
+                <X :size="14" class="btn-icon" />
+                <span>REJECT</span>
               </button>
             </div>
 
             <!-- Resolved Status -->
             <div v-else-if="msg.actionCard.status === 'approved'" class="hitl-status-resolved success">
               <CheckCircle2 :size="15" />
-              <span>Command authorized. Dispatch telemetry sent; actuator is active.</span>
+              <span>Command authorized & logged in Daily Execution Hub. Dispatch telemetry transmitted to hardware.</span>
             </div>
             <div v-else class="hitl-status-resolved cancelled">
               <X :size="15" />
-              <span>Command cancelled by supervisor. Actuator remains in standby.</span>
+              <span>Command cancelled by supervisor. Actuators remain in standby mode.</span>
             </div>
           </div>
         </div>
@@ -203,45 +251,17 @@ const formatMarkdown = (text) => {
       </div>
     </div>
 
-    <!-- Suggested Quick Actions -->
-    <div class="prompt-chips-tray">
-      <span class="chips-label">Quick Actions:</span>
-      <button 
-        class="chip-btn" 
-        @click="sendPromptPreset('Give me the morning water quality briefing for ' + activePond.name + '.')"
-      >
-        ☀️ Morning Briefing
-      </button>
-      <button 
-        class="chip-btn" 
-        @click="sendPromptPreset('What is the recommended molasses dosage for C:N balance in ' + activePond.name + '?')"
-      >
-        🧪 Molasses Dose
-      </button>
-      <button 
-        class="chip-btn" 
-        @click="sendPromptPreset('Dispense 5.2 kg feed for ' + activePond.name + ' now.')"
-      >
-        🐟 Dispense 5.2 kg Feed
-      </button>
-      <button 
-        class="chip-btn" 
-        @click="sendPromptPreset('Is the dissolved oxygen level safe right now in ' + activePond.name + '?')"
-      >
-        🚨 Check Oxygen Level
-      </button>
-    </div>
-
     <!-- Input Bar -->
     <div class="chat-input-bar">
       <div class="input-field-wrapper">
         <input 
+          ref="commandInputRef"
           id="input-nlops-command"
           type="text" 
           v-model="inputMessage" 
-          placeholder="Ask Co-Pilot or type a command (e.g., 'check oxygen', 'dispense feed', 'calculate molasses')..." 
+          placeholder="Type an instruction or query (e.g. 'how is pond 1?', 'change afternoon feed to 15 kg', 'set aerator to 90%')..." 
           @keydown.enter="handleSend"
-          :disabled="isThinking"
+          autocomplete="off"
         />
         
         <button class="icon-tool-btn" title="Voice Command (Mic)">
@@ -461,6 +481,70 @@ const formatMarkdown = (text) => {
   box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);
 }
 
+/* Rich Markdown Rendering for Tables, Lists, and Headings */
+.msg-body :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.82rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.msg-body :deep(th) {
+  background: #f1f5f9;
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.msg-body :deep(td) {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--text-primary);
+}
+
+.msg-body :deep(tr:last-child td) {
+  border-bottom: none;
+}
+
+.msg-body :deep(tr:nth-child(even)) {
+  background: #ffffff;
+}
+
+.msg-body :deep(ul), .msg-body :deep(ol) {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.msg-body :deep(li) {
+  margin-bottom: 4px;
+}
+
+.msg-body :deep(h1), .msg-body :deep(h2), .msg-body :deep(h3), .msg-body :deep(h4) {
+  margin: 12px 0 6px 0;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.msg-body :deep(p) {
+  margin-bottom: 8px;
+}
+
+.msg-body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.msg-body :deep(hr) {
+  margin: 12px 0;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+}
+
 /* HITL Action Card */
 .hitl-action-card {
   margin-top: 10px;
@@ -472,6 +556,13 @@ const formatMarkdown = (text) => {
   flex-direction: column;
   gap: 10px;
   box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.hitl-action-card.is-critical {
+  border-color: #f43f5e;
+  background: linear-gradient(180deg, #fff1f2 0%, #ffffff 100%);
+  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.2), var(--shadow-sm);
 }
 
 .hitl-action-card.status-approved {
@@ -482,6 +573,56 @@ const formatMarkdown = (text) => {
 .hitl-action-card.status-cancelled {
   border-color: var(--rose-300);
   background: #fff1f2;
+}
+
+.hitl-params-pill-grid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 2px 0;
+}
+
+.param-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+}
+
+.param-tag.feed {
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.param-tag.aerate {
+  background: rgba(14, 165, 233, 0.1);
+  color: #0369a1;
+  border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+.param-tag.molasses {
+  background: rgba(168, 85, 247, 0.1);
+  color: #7e22ce;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.hitl-guidance-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #475569;
+  background: rgba(245, 158, 11, 0.08);
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px dashed rgba(245, 158, 11, 0.3);
+}
+
+.note-bulb {
+  flex-shrink: 0;
 }
 
 .hitl-card-header {
@@ -519,8 +660,27 @@ const formatMarkdown = (text) => {
 
 .hitl-buttons-row {
   display: flex;
+  align-items: center;
   gap: 10px;
   margin-top: 6px;
+}
+
+.hitl-buttons-row .btn-action-agree,
+.hitl-buttons-row .btn-action-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.hitl-buttons-row .btn-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .hitl-status-resolved {
@@ -600,6 +760,19 @@ const formatMarkdown = (text) => {
   background: var(--sky-50);
   color: var(--sky-700);
   border-color: var(--sky-200);
+}
+
+.chip-btn.chip-critical {
+  background: rgba(244, 63, 94, 0.08);
+  border-color: rgba(244, 63, 94, 0.35);
+  color: #e11d48;
+  font-weight: 700;
+}
+
+.chip-btn.chip-critical:hover {
+  background: rgba(244, 63, 94, 0.16);
+  border-color: #f43f5e;
+  transform: translateY(-1px);
 }
 
 /* Input Bar */

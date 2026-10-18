@@ -42,15 +42,15 @@ defineProps({
 
     <!-- Quick Stats Pills -->
     <div class="stats-pills">
-      <div class="stat-pill" title="Estimasi Biomassa Seluruh Kolam">
+      <div class="stat-pill" title="Estimated Total Farm Biomass">
         <Layers class="pill-icon text-cyan" :size="15" />
         <div class="pill-data">
           <span class="pill-val font-mono">{{ globalFarmMetrics.totalBiomassKg.toLocaleString() }} kg</span>
-          <span class="pill-lbl">Biomassa Total</span>
+          <span class="pill-lbl">Total Biomass</span>
         </div>
       </div>
 
-      <div class="stat-pill" title="Rasio Konversi Pakan (Feed Conversion Ratio)">
+      <div class="stat-pill" title="Feed Conversion Ratio (FCR)">
         <FlaskConical class="pill-icon text-emerald" :size="15" />
         <div class="pill-data">
           <span class="pill-val font-mono">{{ globalFarmMetrics.fcr }}</span>
@@ -58,7 +58,7 @@ defineProps({
         </div>
       </div>
 
-      <div class="stat-pill" title="Indeks Kesehatan Biofloc">
+      <div class="stat-pill" title="Biofloc Health Vitality Index">
         <Activity class="pill-icon text-emerald" :size="15" />
         <div class="pill-data">
           <span class="pill-val font-mono">{{ globalFarmMetrics.avgHealth }}%</span>
@@ -70,7 +70,7 @@ defineProps({
     <!-- System Status & Controls -->
     <div class="system-status-group">
       <!-- Hardware Gateway Indicator -->
-      <div class="status-indicator-chip" title="Koneksi Edge Microcontroller ESP32">
+      <div class="status-indicator-chip" title="ESP32 Edge Microcontroller Connection">
         <span class="pulse-dot online"></span>
         <div class="chip-text">
           <span class="chip-title">ESP32 Edge</span>
@@ -93,7 +93,7 @@ defineProps({
         class="simulator-toggle-btn" 
         :class="{ active: simulatorOpen }"
         @click="emit('toggle-simulator')"
-        title="Buka panel simulasi skenario demo juri"
+        title="Open Demo Scenario Simulation Panel"
       >
         <SlidersHorizontal :size="16" />
         <span>Demo Simulator</span>

@@ -4,8 +4,8 @@ import WaterTelemetryView from '../views/WaterTelemetryView.vue'
 import CopilotView from '../views/CopilotView.vue'
 import PondsManagementView from '../views/PondsManagementView.vue'
 import HardwareNodesView from '../views/HardwareNodesView.vue'
-import BioflocCalculatorView from '../views/BioflocCalculatorView.vue'
 import LogAuditView from '../views/LogAuditView.vue'
+import DailyExecutionView from '../views/DailyExecutionView.vue'
 
 const routes = [
   {
@@ -16,10 +16,18 @@ const routes = [
     meta: { title: 'Pond Overview — Sampay Biofloc' }
   },
   {
-    path: '/telemetry',
-    name: 'telemetry',
+    path: '/daily-treatment',
+    alias: ['/execution', '/daily-execution', '/treatment'],
+    name: 'daily-treatment',
+    component: DailyExecutionView,
+    meta: { title: 'Daily Treatment — Sampay Biofloc' }
+  },
+  {
+    path: '/water-quality',
+    alias: ['/telemetry', '/water-telemetry'],
+    name: 'water-quality',
     component: WaterTelemetryView,
-    meta: { title: 'Water Quality & Telemetry — Sampay Biofloc' }
+    meta: { title: 'Water Quality — Sampay Biofloc' }
   },
   {
     path: '/copilot',
@@ -41,9 +49,7 @@ const routes = [
   },
   {
     path: '/calculator',
-    name: 'calculator',
-    component: BioflocCalculatorView,
-    meta: { title: 'Molasses Calculator — Sampay Biofloc' }
+    redirect: '/execution'
   },
   {
     path: '/audit',

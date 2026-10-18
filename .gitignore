@@ -24,6 +24,13 @@ build/
 */.env.*
 !*/.env.example
 
+# Local Databases
+*.sqlite
+*.sqlite3
+*.db
+backend/data/*.sqlite3
+!backend/data/.gitkeep
+
 # macOS files
 .DS_Store
 .AppleDouble

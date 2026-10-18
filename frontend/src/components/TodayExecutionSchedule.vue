@@ -12,7 +12,8 @@ import {
   Zap, 
   Sparkles,
   ChevronRight,
-  Flame
+  Flame,
+  ArrowUpRight
 } from 'lucide-vue-next'
 
 const { activePond, triggerFeeder, triggerMolassesDosing } = usePonds()
@@ -142,9 +143,16 @@ const handleExecuteEarly = (session) => {
           <span class="panel-sub font-mono">Planned feeding, molasses dosing & aeration windows • {{ activePond.name }}</span>
         </div>
       </div>
-      <div class="next-pill font-mono">
-        <Clock :size="12" class="text-amber" />
-        <span>Next Action: 16:30 WIB (Molasses)</span>
+      <div class="header-right-actions">
+        <router-link to="/execution" class="btn-hub-link font-sans">
+          <Zap :size="13" />
+          <span>Buka Daily Execution Hub</span>
+          <ArrowUpRight :size="13" />
+        </router-link>
+        <div class="next-pill font-mono">
+          <Clock :size="12" class="text-amber" />
+          <span>Next Action: 16:30 WIB (Molasses)</span>
+        </div>
       </div>
     </div>
 
@@ -293,6 +301,33 @@ const handleExecuteEarly = (session) => {
 .panel-sub {
   font-size: 0.68rem;
   color: var(--text-muted);
+}
+
+.header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-hub-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--sky-50);
+  color: var(--sky-700);
+  border: 1px solid var(--sky-200);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.btn-hub-link:hover {
+  background: var(--sky-100);
+  border-color: var(--sky-300);
+  transform: translateY(-1px);
 }
 
 .next-pill {

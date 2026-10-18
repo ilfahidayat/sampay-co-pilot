@@ -33,7 +33,7 @@ const defaultId = computed(() => {
 // Form state
 const form = ref({
   id: defaultId.value,
-  name: `Pond #${nextPondNumber.value} — Nursery B`,
+  name: `Pond ${nextPondNumber.value}`,
   volumeM3: 50,
   species: 'Red Tilapia (Oreochromis niloticus)',
   phase: 'Nursery Stage (Fingerlings)',
@@ -164,7 +164,7 @@ const handleSubmit = () => {
                 v-model="form.name" 
                 type="text" 
                 class="form-input font-sans" 
-                placeholder="e.g. Pond #5 — Nursery B" 
+                placeholder="e.g. Pond 5 — Nursery B" 
                 :class="{ error: errors.name }"
               />
               <span v-if="errors.name" class="error-msg">{{ errors.name }}</span>
@@ -230,10 +230,10 @@ const handleSubmit = () => {
           </div>
 
           <div class="grid-2">
-            <!-- Jumlah Bibit (Fingerlings Count) -->
+            <!-- Fingerlings Population -->
             <div class="form-group">
               <label class="form-label" for="fish-count">
-                <span>Seed Population (Jumlah Bibit)</span>
+                <span>Fingerling Stock Population</span>
                 <span class="req">*</span>
               </label>
               <div class="input-with-unit">
@@ -247,15 +247,15 @@ const handleSubmit = () => {
                   class="form-input font-mono" 
                   :class="{ error: errors.fishCount }"
                 />
-                <span class="unit-tag font-mono">ekor</span>
+                <span class="unit-tag font-mono">fish</span>
               </div>
               <span v-if="errors.fishCount" class="error-msg">{{ errors.fishCount }}</span>
             </div>
 
-            <!-- Berat Rata-rata Bibit (Avg Weight) -->
+            <!-- Average Fingerling Weight -->
             <div class="form-group">
               <label class="form-label" for="fish-weight">
-                <span>Seed Initial Weight (Berat Bibit Awal)</span>
+                <span>Initial Fingerling Weight</span>
                 <span class="req">*</span>
               </label>
               <div class="input-with-unit">
@@ -269,17 +269,17 @@ const handleSubmit = () => {
                   class="form-input font-mono" 
                   :class="{ error: errors.avgWeightGrams }"
                 />
-                <span class="unit-tag font-mono">g / ekor</span>
+                <span class="unit-tag font-mono">g / fish</span>
               </div>
               <span v-if="errors.avgWeightGrams" class="error-msg">{{ errors.avgWeightGrams }}</span>
             </div>
           </div>
 
           <div class="grid-2">
-            <!-- Tanggal Tebar (Stocking Date) -->
+            <!-- Stocking Date -->
             <div class="form-group">
               <label class="form-label" for="stock-date">
-                <span>Stocking Date (Tanggal Tebar)</span>
+                <span>Stocking Date</span>
               </label>
               <input 
                 id="stock-date" 

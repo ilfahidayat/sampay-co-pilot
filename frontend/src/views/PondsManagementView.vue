@@ -17,13 +17,18 @@ import {
   Sparkles,
   Calendar,
   Filter,
-  Skull
+  Skull,
+  Cpu,
+  Settings2,
+  FileText
 } from 'lucide-vue-next'
 
 import AddPondModal from '../components/AddPondModal.vue'
 import PondGrowthDetailModal from '../components/PondGrowthDetailModal.vue'
 import PondCycleActionModal from '../components/PondCycleActionModal.vue'
 import PondMortalityModal from '../components/PondMortalityModal.vue'
+import PondMortalityLogModal from '../components/PondMortalityLogModal.vue'
+import PondIotConfigModal from '../components/PondIotConfigModal.vue'
 
 const router = useRouter()
 const { ponds, selectedPondId, setPond, globalFarmMetrics } = usePonds()
@@ -34,6 +39,8 @@ const isAddModalOpen = ref(false)
 const selectedPondForDetail = ref(null)
 const selectedPondForCycleAction = ref(null)
 const selectedPondForMortality = ref(null)
+const selectedPondForMortalityLog = ref(null)
+const selectedPondForIotConfig = ref(null)
 
 // Filter state
 const activeStatusFilter = ref('ALL') // 'ALL' | 'ACTIVE' | 'HARVESTED'
@@ -76,13 +83,15 @@ const openMortality = (pond) => {
   selectedPondForMortality.value = pond
 }
 
-const inspectPond = (pondId) => {
-  setPond(pondId)
-  router.push('/')
+const openMortalityLog = (pond) => {
+  selectedPondForMortalityLog.value = pond
+}
+
+const openIotConfig = (pond) => {
+  selectedPondForIotConfig.value = pond
 }
 
 const handleCycleActionCompleted = () => {
-  // refresh or update modal state
   if (selectedPondForDetail.value) {
     selectedPondForDetail.value = ponds.value.find(p => p.id === selectedPondForDetail.value.id) || null
   }
@@ -91,6 +100,9 @@ const handleCycleActionCompleted = () => {
 const handleMortalityRecorded = () => {
   if (selectedPondForDetail.value) {
     selectedPondForDetail.value = ponds.value.find(p => p.id === selectedPondForDetail.value.id) || null
+  }
+  if (selectedPondForMortalityLog.value) {
+    selectedPondForMortalityLog.value = ponds.value.find(p => p.id === selectedPondForMortalityLog.value.id) || null
   }
 }
 </script>
@@ -106,7 +118,7 @@ const handleMortalityRecorded = () => {
         <div>
           <h2 class="view-title font-display">Pond Fleet & Biomass Management</h2>
           <span class="view-sub font-mono">
-            Biomass growth tracking, fingerling stocking, harvesting & progressive grading across {{ ponds.length }} biofloc ponds
+            Biomass growth tracking, stocking, harvesting & IoT telemetry across {{ ponds.length }} biofloc units
           </span>
         </div>
       </div>
@@ -125,7 +137,7 @@ const handleMortalityRecorded = () => {
         </div>
         <div class="kpi-val-row">
           <span class="val-num text-sky">{{ ponds.length }}</span>
-          <span class="val-sub">Active Units</span>
+          <span class="val-sub">Units</span>
         </div>
         <span class="kpi-note">{{ ponds.filter(p => p.cycleStatus === 'ACTIVE' || !p.cycleStatus).length }} in active culture</span>
       </div>
@@ -196,7 +208,7 @@ const handleMortalityRecorded = () => {
           </button>
         </div>
       </div>
-      <span class="record-count text-muted font-mono">{{ filteredPonds.length }} ponds shown</span>
+      <span class="record-count text-muted font-mono">{{ filteredPonds.length }} ponds displayed</span>
     </div>
 
     <!-- Ponds Summary Table -->
@@ -204,14 +216,14 @@ const handleMortalityRecorded = () => {
       <table class="enterprise-table">
         <thead>
           <tr>
-            <th>Pond & Dimension</th>
-            <th>Species & Cycle State</th>
+            <th>Pond & Unit</th>
+            <th>Species & Stage</th>
             <th>Fingerling Stock</th>
-            <th>Growth & Harvest Progress</th>
+            <th>Growth & Harvest Target</th>
             <th>Live Biomass & Density</th>
             <th>SR (%) & ADG</th>
             <th>Cycle Status</th>
-            <th style="text-align: right;">Operations & Tracking</th>
+            <th style="text-align: right; min-width: 280px;">Operations & Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -236,7 +248,7 @@ const handleMortalityRecorded = () => {
                 <span class="species-name">{{ pond.species }}</span>
                 <span class="phase-tag font-mono">{{ pond.phase }}</span>
                 <span class="stocking-meta font-mono text-muted">
-                  Tebar: {{ pond.stockingDate || '12 Jan 2026' }} • DOC {{ pond.doc || 60 }}d
+                  Stocked: {{ pond.stockingDate || '12 Jan 2026' }} • DOC {{ pond.doc || 60 }}d
                 </span>
               </div>
             </td>
@@ -289,51 +301,54 @@ const handleMortalityRecorded = () => {
               </span>
             </td>
 
-            <!-- Action Buttons -->
+            <!-- Neater, Standardized Enterprise Action Buttons Row -->
             <td>
               <div class="table-actions-row font-mono">
-                <!-- Button: Record Mortality -->
+                <!-- Action 1: Growth Details -->
                 <button 
-                  :id="'btn-mortality-' + pond.id"
-                  class="btn-act mortality" 
-                  title="Record fish mortality (catat kematian ikan)"
-                  @click="openMortality(pond)"
-                >
-                  <Skull :size="12" />
-                  <span>Mortality</span>
-                </button>
-
-                <!-- Button: Growth Details -->
-                <button 
-                  :id="'btn-growth-detail-' + pond.id"
-                  class="btn-act detail" 
-                  title="View detailed growth curve, ADG, SR and sampling history"
+                  :id="'btn-growth-' + pond.id"
+                  class="action-pill growth" 
+                  title="View sampling curve, ADG progression, and milestone logs"
                   @click="openDetail(pond)"
                 >
                   <TrendingUp :size="12" />
                   <span>Growth</span>
                 </button>
 
-                <!-- Button: End Cycle (Harvest / Transfer) -->
+                <!-- Action 2: Mortality Logs Audit -->
                 <button 
-                  :id="'btn-end-cycle-' + pond.id"
-                  class="btn-act cycle" 
-                  title="Harvest fish or transfer to another pond"
+                  :id="'btn-mortality-logs-' + pond.id"
+                  class="action-pill mortality" 
+                  title="View mortality audit logs and record death incidents"
+                  @click="openMortalityLog(pond)"
+                >
+                  <Skull :size="12" />
+                  <span>Mortality</span>
+                  <span v-if="pond.cumulativeMortalityCount" class="badge-mini">
+                    {{ pond.cumulativeMortalityCount }}
+                  </span>
+                </button>
+
+                <!-- Action 3: IoT Gateway & Telemetry Configuration -->
+                <button 
+                  :id="'btn-iot-config-' + pond.id"
+                  class="action-pill iot" 
+                  title="Configure edge controller device tag, MQTT topic, and sensor calibration"
+                  @click="openIotConfig(pond)"
+                >
+                  <Cpu :size="12" />
+                  <span>IoT Setup</span>
+                </button>
+
+                <!-- Action 4: End Cycle (Harvest / Transfer / Restock) -->
+                <button 
+                  :id="'btn-cycle-' + pond.id"
+                  class="action-pill cycle" 
+                  title="Execute harvest thinning, grading migration, or restock"
                   @click="openCycleAction(pond)"
                 >
                   <Award :size="12" />
-                  <span>End Cycle</span>
-                </button>
-
-                <!-- Button: Select / Inspect in Dashboard -->
-                <button 
-                  :id="'btn-inspect-pond-' + pond.id"
-                  class="btn-act inspect"
-                  :class="{ selected: selectedPondId === pond.id }"
-                  @click="inspectPond(pond.id)"
-                  title="Inspect telemetry & controls in Pod Overview"
-                >
-                  {{ selectedPondId === pond.id ? 'Active' : 'Inspect' }}
+                  <span>Cycle</span>
                 </button>
               </div>
             </td>
@@ -342,7 +357,7 @@ const handleMortalityRecorded = () => {
       </table>
     </div>
 
-    <!-- Modals -->
+    <!-- Modals Layer -->
     <!-- 1. Add Pond Modal -->
     <AddPondModal 
       v-if="isAddModalOpen" 
@@ -359,7 +374,7 @@ const handleMortalityRecorded = () => {
       @open-mortality="(p) => { openMortality(p); }"
     />
 
-    <!-- 3. Pond Cycle Action Modal (Harvest / Transfer) -->
+    <!-- 3. Pond Cycle Action Modal (Harvest / Transfer / Restock) -->
     <PondCycleActionModal 
       v-if="selectedPondForCycleAction" 
       :pond="selectedPondForCycleAction" 
@@ -367,12 +382,27 @@ const handleMortalityRecorded = () => {
       @action-completed="handleCycleActionCompleted"
     />
 
-    <!-- 4. Pond Mortality Modal (Pencatatan Kematian Ikan) -->
+    <!-- 4. Pond Mortality Record Modal (Quick Incident Logging) -->
     <PondMortalityModal 
-      v-if="selectedPondForMortality"
-      :pond="selectedPondForMortality"
+      v-if="selectedPondForMortality" 
+      :pond="selectedPondForMortality" 
       @close="selectedPondForMortality = null"
       @recorded="handleMortalityRecorded"
+    />
+
+    <!-- 5. Pond Mortality Audit Log Modal (View Full Table of Logs) -->
+    <PondMortalityLogModal 
+      v-if="selectedPondForMortalityLog" 
+      :pond="selectedPondForMortalityLog" 
+      @close="selectedPondForMortalityLog = null"
+      @open-record-mortality="(p) => { selectedPondForMortalityLog = null; openMortality(p); }"
+    />
+
+    <!-- 6. Pond IoT Edge & Telemetry Configuration Modal -->
+    <PondIotConfigModal 
+      v-if="selectedPondForIotConfig" 
+      :pond="selectedPondForIotConfig" 
+      @close="selectedPondForIotConfig = null"
     />
   </div>
 </template>
@@ -381,18 +411,20 @@ const handleMortalityRecorded = () => {
 .ponds-management-view {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* View Header */
 .view-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #ffffff;
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 14px 18px;
-  box-shadow: var(--shadow-xs);
 }
 
 .header-left {
@@ -402,70 +434,77 @@ const handleMortalityRecorded = () => {
 }
 
 .icon-box {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   background: var(--sky-50);
   border: 1px solid var(--sky-200);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .text-sky { color: var(--sky-600); }
 .text-emerald { color: var(--emerald-600); }
-.text-purple { color: var(--purple-600); }
-.text-amber { color: var(--amber-600); }
+.text-purple { color: #8b5cf6; }
+.text-amber { color: #d97706; }
 
 .view-title {
-  font-size: 1.12rem;
+  font-size: 1.35rem;
   font-weight: 800;
   color: var(--text-primary);
   line-height: 1.2;
 }
 
 .view-sub {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
 }
 
 .btn-primary {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 10px;
   border: none;
   background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
   color: #ffffff;
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
-  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+  transition: all 0.2s ease;
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(2, 132, 199, 0.4);
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
 }
 
 /* 4 Summary KPIs Grid */
 .summary-kpis-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  gap: 14px;
 }
 
 .kpi-card {
   background: #ffffff;
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 12px 14px;
+  border-radius: 12px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   box-shadow: var(--shadow-xs);
+  transition: all 0.2s ease;
+}
+
+.kpi-card:hover {
+  border-color: var(--border-medium);
+  box-shadow: var(--shadow-sm);
 }
 
 .kpi-head {
@@ -476,29 +515,32 @@ const handleMortalityRecorded = () => {
 
 .kpi-lbl {
   font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
   font-weight: 700;
-  color: var(--text-secondary);
 }
 
 .kpi-val-row {
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: 6px;
 }
 
 .val-num {
-  font-size: 1.35rem;
-  font-weight: 800;
-  line-height: 1.1;
+  font-size: 1.55rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .val-sub {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
+  font-weight: 600;
 }
 
 .kpi-note {
-  font-size: 0.62rem;
+  font-size: 0.64rem;
   color: var(--text-muted);
 }
 
@@ -509,41 +551,43 @@ const handleMortalityRecorded = () => {
   align-items: center;
   background: var(--bg-surface-subtle);
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  padding: 6px 12px;
+  border-radius: 10px;
+  padding: 8px 14px;
 }
 
 .filter-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .filter-label {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--text-secondary);
 }
 
 .filter-chips {
   display: flex;
-  gap: 5px;
+  gap: 6px;
 }
 
 .chip-btn {
   padding: 4px 10px;
   border-radius: 6px;
-  font-size: 0.66rem;
-  font-weight: 700;
+  border: 1px solid var(--border-medium);
   background: #ffffff;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .chip-btn:hover {
-  color: var(--text-primary);
+  background: var(--sky-50);
+  border-color: var(--sky-300);
+  color: var(--sky-700);
 }
 
 .chip-btn.active {
@@ -573,18 +617,19 @@ const handleMortalityRecorded = () => {
 }
 
 .enterprise-table th {
-  padding: 10px 14px;
+  padding: 11px 14px;
   background: var(--bg-surface-subtle);
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: 800;
   font-size: 0.66rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
 }
 
 .enterprise-table td {
-  padding: 11px 14px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-primary);
   vertical-align: middle;
@@ -648,27 +693,24 @@ const handleMortalityRecorded = () => {
 .weight-sub {
   font-size: 0.64rem;
   color: var(--text-muted);
-  display: block;
 }
 
-/* Growth Progress Cell */
 .growth-progress-cell {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 120px;
+  gap: 4px;
+  min-width: 130px;
 }
 
 .abw-row {
   display: flex;
-  align-items: baseline;
-  gap: 3px;
-  font-size: 0.75rem;
+  justify-content: space-between;
+  font-size: 0.72rem;
 }
 
 .prog-bar-mini {
   width: 100%;
-  height: 4px;
+  height: 6px;
   background: #e2e8f0;
   border-radius: 999px;
   overflow: hidden;
@@ -678,6 +720,7 @@ const handleMortalityRecorded = () => {
   height: 100%;
   background: linear-gradient(90deg, #0284c7, #38bdf8);
   border-radius: 999px;
+  transition: width 0.3s ease;
 }
 
 .prog-percent-text {
@@ -686,7 +729,6 @@ const handleMortalityRecorded = () => {
 }
 
 .biomass-bold {
-  font-weight: 800;
   font-size: 0.86rem;
   display: block;
 }
@@ -699,6 +741,7 @@ const handleMortalityRecorded = () => {
 
 .adg-sub {
   font-size: 0.64rem;
+  color: var(--text-muted);
   display: block;
 }
 
@@ -726,68 +769,80 @@ const handleMortalityRecorded = () => {
   border: 1px solid var(--sky-200);
 }
 
-/* Action Buttons Row */
+/* Standardized, Clean Action Buttons Row */
 .table-actions-row {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 6px;
+  flex-wrap: nowrap;
 }
 
-.btn-act {
-  display: flex;
+.action-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 9px;
-  border-radius: 6px;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
   font-size: 0.68rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
+  background: #ffffff;
+  border: 1px solid var(--border-medium);
 }
 
-.btn-act.mortality {
-  background: #ffffff;
-  border: 1px solid #fecdd3;
-  color: #e11d48;
+.action-pill:hover {
+  transform: translateY(-1px);
 }
-.btn-act.mortality:hover {
+
+/* 1. Growth */
+.action-pill.growth {
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+.action-pill.growth:hover {
+  background: #f0f9ff;
+  border-color: #38bdf8;
+}
+
+/* 2. Mortality */
+.action-pill.mortality {
+  color: #e11d48;
+  border-color: #fecdd3;
+}
+.action-pill.mortality:hover {
   background: #fff1f2;
   border-color: #f43f5e;
 }
-
-.btn-act.detail {
-  background: #ffffff;
-  border: 1px solid var(--border-medium);
-  color: var(--sky-700);
-}
-.btn-act.detail:hover {
-  background: var(--sky-50);
-  border-color: var(--sky-300);
-}
-
-.btn-act.cycle {
-  background: #ffffff;
-  border: 1px solid var(--border-medium);
-  color: var(--amber-700);
-}
-.btn-act.cycle:hover {
-  background: var(--amber-50);
-  border-color: var(--amber-300);
-}
-
-.btn-act.inspect {
-  background: var(--bg-surface-subtle);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-}
-.btn-act.inspect:hover {
-  background: #e2e8f0;
-}
-.btn-act.inspect.selected {
-  background: var(--sky-600);
-  border-color: var(--sky-600);
+.badge-mini {
+  background: #e11d48;
   color: #ffffff;
+  font-size: 0.58rem;
+  padding: 1px 5px;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+/* 3. IoT Setup */
+.action-pill.iot {
+  color: #4338ca;
+  border-color: #c7d2fe;
+}
+.action-pill.iot:hover {
+  background: #eef2ff;
+  border-color: #818cf8;
+}
+
+/* 4. Cycle */
+.action-pill.cycle {
+  color: #b45309;
+  border-color: #fde68a;
+}
+.action-pill.cycle:hover {
+  background: #fffbeb;
+  border-color: #fbbf24;
 }
 
 @media (max-width: 1024px) {

@@ -28,9 +28,9 @@ const { showToast } = useToast()
 
 const count = ref(5)
 const avgWeightGrams = ref(props.pond.avgWeightGrams || 100)
-const cause = ref('Routine / Natural Mortality (Mortalitas Alami)')
-const disposalMethod = ref('Dikubur dengan Kapur Tohor / Quicklime (Standar SNI Biosecurity)')
-const notes = ref('Routine morning mortality check and pond skimming')
+const cause = ref('Routine / Natural Mortality')
+const disposalMethod = ref('Buried with Quicklime (SNI Biosecurity Standard)')
+const notes = ref('Routine morning mortality inspection and skimming')
 
 const quickPresets = [1, 5, 10, 20, 50]
 
@@ -55,13 +55,13 @@ const projectedSurvivalRate = computed(() => {
   return Number((((initial - newCumulativeMortality) / initial) * 100).toFixed(1))
 })
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (count.value <= 0) {
     showToast('⚠️ Please enter a mortality count greater than 0', 'warning')
     return
   }
 
-  const result = recordFishMortality(props.pond.id, {
+  const result = await recordFishMortality(props.pond.id, {
     count: count.value,
     avgWeightGrams: avgWeightGrams.value,
     cause: cause.value,
@@ -71,7 +71,7 @@ const handleSubmit = () => {
 
   if (result) {
     showToast(
-      `💀 Mortality Recorded: -${count.value} fish logged for ${props.pond.name}. Survival rate updated to ${projectedSurvivalRate.value}%.`,
+      `💀 Mortality Recorded: -${count.value} fish logged for ${props.pond.name}. Saved to Database & SR updated to ${projectedSurvivalRate.value}%.`,
       'info'
     )
     emit('recorded', result)
@@ -90,7 +90,7 @@ const handleSubmit = () => {
             <AlertOctagon :size="20" class="text-rose" />
           </div>
           <div>
-            <h3 class="modal-title font-display">Record Fish Mortality (Pencatatan Kematian)</h3>
+            <h3 class="modal-title font-display">Record Fish Mortality Incident</h3>
             <span class="modal-sub font-mono">
               {{ pond.name }} (ID: {{ pond.id }}) • Population: {{ pond.fishCount?.toLocaleString() }} fish • SR: {{ pond.survivalRate || 95 }}%
             </span>
@@ -107,7 +107,7 @@ const handleSubmit = () => {
         <div class="form-group font-mono">
           <div class="label-row">
             <label class="form-label" for="mortality-count">
-              <span>Dead Fish Count (Jumlah Ikan Mati)</span>
+              <span>Dead Fish Count</span>
               <span class="req">*</span>
             </label>
             <span class="stock-hint">Current: {{ pond.fishCount?.toLocaleString() }} fish</span>
@@ -131,7 +131,7 @@ const handleSubmit = () => {
                 class="chip-btn font-mono"
                 @click="count = p"
               >
-                {{ p }} ekor
+                {{ p }} fish
               </button>
             </div>
           </div>
@@ -141,7 +141,7 @@ const handleSubmit = () => {
         <div class="grid-2 font-mono">
           <div class="form-group">
             <label class="form-label" for="dead-abw">
-              <span>Average Weight (Bobot Ikan Mati)</span>
+              <span>Average Fish Weight</span>
             </label>
             <div class="input-with-unit">
               <input 
@@ -153,7 +153,7 @@ const handleSubmit = () => {
                 max="2000"
                 class="form-input"
               />
-              <span class="unit-tag">g / ekor</span>
+              <span class="unit-tag">g / fish</span>
             </div>
           </div>
 
@@ -171,43 +171,43 @@ const handleSubmit = () => {
         <!-- Cause of Mortality -->
         <div class="form-group font-mono">
           <label class="form-label" for="mortality-cause">
-            <span>Observed Symptom / Cause (Penyebab / Indikasi)</span>
+            <span>Observed Symptom / Cause of Death</span>
             <span class="req">*</span>
           </label>
           <select id="mortality-cause" v-model="cause" class="form-select font-sans">
-            <option value="Routine / Natural Mortality (Mortalitas Alami)">Routine / Natural Mortality (Mortalitas Wajar & Alami)</option>
-            <option value="Hypoxia / Low DO (Kekurangan Oksigen)">Hypoxia / Low DO Stress (Kekurangan Oksigen Terlarut)</option>
-            <option value="Elevated Ammonia / TAN Deficit (Keracunan Amonia)">Elevated Ammonia / TAN Deficit (Keracunan Amonia)</option>
-            <option value="Cannibalism / Physical Injury (Kanibalisme / Luka Fisik)">Cannibalism / Physical Injury (Kanibalisme / Gigitan)</option>
-            <option value="Thermal Shock / Temp Fluctuation (Fluktuasi Suhu Ekstrem)">Thermal Shock / Extreme Temperature (Suhu Ekstrem)</option>
-            <option value="Bacterial Infection / Fin Rot (Infeksi Bakteri)">Bacterial Infection / Fin Rot (Infeksi Bakteri / Busuk Sirip)</option>
-            <option value="Grading & Handling Stress (Stres Penanganan)">Grading & Handling Stress (Stres Pasca-Grading / Pindah)</option>
+            <option value="Routine / Natural Mortality">Routine / Natural Mortality (Normal Baseline)</option>
+            <option value="Hypoxia / Low DO Stress">Hypoxia / Low Dissolved Oxygen Stress</option>
+            <option value="Elevated Ammonia / TAN Deficit">Elevated Ammonia / TAN Toxicity</option>
+            <option value="Cannibalism / Physical Injury">Cannibalism / Physical Bite Injury</option>
+            <option value="Thermal Shock / Extreme Temperature">Thermal Shock / Extreme Temperature Fluctuation</option>
+            <option value="Bacterial Infection / Fin Rot">Bacterial Infection / Fin Rot</option>
+            <option value="Grading & Handling Stress">Grading & Handling Stress (Post-Transfer)</option>
           </select>
         </div>
 
         <!-- Disposal & Biosecurity Method -->
         <div class="form-group font-mono">
           <label class="form-label" for="mortality-disposal">
-            <span>Disposal & Biosecurity Method (Pemusnahan Bangkai)</span>
+            <span>Disposal & Biosecurity Protocol</span>
           </label>
           <select id="mortality-disposal" v-model="disposalMethod" class="form-select font-sans">
-            <option value="Dikubur dengan Kapur Tohor / Quicklime (Standar SNI Biosecurity)">Dikubur dengan Kapur Tohor / Quicklime (Standar SNI Biosecurity)</option>
-            <option value="Insenerasi / Dibakar Terisolasi">Insenerasi / Dibakar Terisolasi (Mencegah Kontaminasi Patogen)</option>
-            <option value="Pengomposan Khusus Silase Ikan">Pengomposan Khusus / Pembuatan Silase Tertutup</option>
+            <option value="Buried with Quicklime (SNI Biosecurity Standard)">Buried with Quicklime (SNI Biosecurity Standard)</option>
+            <option value="High-Temperature Incineration">High-Temperature Incineration (Isolated Pit)</option>
+            <option value="Closed Anaerobic Ensiling">Closed Anaerobic Ensiling / Fish Silage Composting</option>
           </select>
         </div>
 
         <!-- Supervisor Notes -->
         <div class="form-group font-mono">
           <label class="form-label" for="mortality-notes">
-            <span>Supervisor Notes / Tindakan Korektif</span>
+            <span>Supervisor Notes / Corrective Actions</span>
           </label>
           <input 
             id="mortality-notes"
             v-model="notes"
             type="text"
             class="form-input font-sans"
-            placeholder="e.g. Bangkai langsung diangkat dan aerasi kolam dinaikkan ke 85% RPM"
+            placeholder="e.g. Mortalities scooped; aerator output increased to 85% RPM"
           />
         </div>
 

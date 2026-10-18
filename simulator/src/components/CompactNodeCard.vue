@@ -1,5 +1,7 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
+import { simulationEngine } from '../services/simulationEngine'
+import AdjustSensorModal from './AdjustSensorModal.vue'
 
 const props = defineProps({
   node: {
@@ -8,268 +10,402 @@ const props = defineProps({
   }
 })
 
-const formattedUptime = computed(() => {
-  const s = props.node.uptimeSeconds
-  const hrs = Math.floor(s / 3600)
-  const mins = Math.floor((s % 3600) / 60)
-  const secs = s % 60
-  return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+const isUpdating = ref(false)
+const showAdjustModal = ref(false)
+
+const formattedTime = computed(() => {
+  const now = new Date()
+  return now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 })
 
-const pondTheme = computed(() => {
-  switch (props.node.pondId) {
-    case 'K01':
-      return {
-        accent: 'accent-k01',
-        badge: 'border',
-        badgeStyle: 'background-color: #dbeafe; color: #1d4ed8; border-color: #bfdbfe !important;'
-      }
-    case 'K02':
-      return {
-        accent: 'accent-k02',
-        badge: 'border',
-        badgeStyle: 'background-color: #d1fae5; color: #047857; border-color: #a7f3d0 !important;'
-      }
-    case 'K03':
-      return {
-        accent: 'accent-k03',
-        badge: 'border',
-        badgeStyle: 'background-color: #ede9fe; color: #6d28d9; border-color: #ddd6fe !important;'
-      }
-    default:
-      return {
-        accent: 'accent-k04',
-        badge: 'border',
-        badgeStyle: 'background-color: #fef3c7; color: #b45309; border-color: #fde68a !important;'
-      }
-  }
-})
+const onTogglePower = () => {
+  simulationEngine.toggleNodePower(props.node.id)
+}
 
-const doStatus = computed(() => {
-  if (props.node.dissolvedOxygen >= 5.0) return { text: 'Optimal', class: 'bg-success text-white' }
-  if (props.node.dissolvedOxygen >= 3.5) return { text: 'Moderate', class: 'bg-warning text-dark' }
-  return { text: 'Hypoxia', class: 'bg-danger text-white' }
-})
+const onSelectCondition = (condition) => {
+  if (!props.node.isPowered) return
+  simulationEngine.setNodeCondition(props.node.id, condition)
+}
 
-const ammoniaStatus = computed(() => {
-  if (props.node.ammonia < 0.25) return { text: 'Safe', class: 'bg-success text-white' }
-  if (props.node.ammonia < 0.8) return { text: 'Warning', class: 'bg-warning text-dark' }
-  return { text: 'Critical', class: 'bg-danger text-white' }
-})
+const onManualUpdate = () => {
+  if (!props.node.isPowered) return
+  isUpdating.value = true
+  simulationEngine.triggerManualPublish(props.node.id)
+  setTimeout(() => {
+    isUpdating.value = false
+  }, 750)
+}
 
-const phStatus = computed(() => {
-  if (props.node.ph < 6.8) return { text: 'Acidic', class: 'bg-warning text-dark' }
-  if (props.node.ph > 8.2) return { text: 'Alkaline', class: 'bg-danger text-white' }
-  return { text: 'Optimal', class: 'bg-success text-white' }
-})
+const triggerFeed = () => {
+  if (!props.node.isPowered) return
+  simulationEngine.triggerFeederAction(props.node.id, 50)
+}
+
+const triggerMolasses = () => {
+  if (!props.node.isPowered) return
+  simulationEngine.triggerMolassesAction(props.node.id, 100)
+}
+
+const triggerSiphon = () => {
+  if (!props.node.isPowered) return
+  simulationEngine.triggerSiphonAction(props.node.id, 200)
+}
 </script>
 
 <template>
-  <div class="card card-iot h-100 shadow-sm">
-    <!-- Top Accent Bar per Pond -->
-    <div class="card-accent-bar" :class="pondTheme.accent"></div>
-
-    <!-- Node Header -->
-    <div class="card-header bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
-      <div>
-        <div class="d-flex align-items-center gap-1 mb-1">
-          <span class="pulse-indicator-green me-1" title="Node Online"></span>
-          <span class="badge rounded-pill fw-bold" :class="pondTheme.badge" :style="pondTheme.badgeStyle" style="font-size: 0.72rem;">
-            {{ node.pondId }}
-          </span>
-          <span class="text-dark fw-bold font-monospace small ms-1">{{ node.id }}</span>
-        </div>
-        <div class="text-muted text-truncate fw-medium" style="font-size: 0.72rem; max-width: 170px;">
+  <div class="mydevices-card" :class="'border-' + node.pondId.toLowerCase()">
+    <!-- 1. Header: Microcontroller Icon (No Background) Aligned with Title, Power Button on Right -->
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+      <!-- Icon + Title Aligned Horizontally with padding -->
+      <div class="d-flex align-items-center min-w-0 flex-grow-1">
+        <i 
+          class="bi bi-cpu-fill flex-shrink-0 me-2" 
+          :class="node.isPowered ? 'text-primary' : 'text-muted'"
+          style="font-size: 1.28rem; line-height: 1;"
+          title="Edge Microcontroller Node (ESP32-S3)"
+        ></i>
+        <span class="fw-bold text-dark lh-1 text-truncate" style="font-size: 1.05rem;">
           {{ node.name }}
+        </span>
+      </div>
+
+      <!-- Top-Right Power Button Toggle -->
+      <button 
+        :id="'btn-power-' + node.pondId.toLowerCase()"
+        @click="onTogglePower" 
+        class="btn-power-toggle flex-shrink-0" 
+        :class="node.isPowered ? 'is-on' : 'is-off'" 
+        :title="node.isPowered ? 'Click to power off hardware node' : 'Click to power on hardware node'"
+      >
+        <i class="bi bi-power"></i>
+        <span>{{ node.isPowered ? 'PWR ON' : 'PWR OFF' }}</span>
+      </button>
+    </div>
+
+    <!-- Metadata Row: Placed underneath BOTH the icon and title -->
+    <div class="d-flex align-items-center justify-content-between font-monospace text-secondary mb-3" style="font-size: 0.72rem;">
+      <div class="text-truncate">
+        {{ node.id }} <span class="text-muted ms-1">• {{ node.pondId }}</span>
+      </div>
+      <div class="text-muted text-truncate" style="font-size: 0.67rem;">
+        MQTT: {{ node.id }}/telemetry
+      </div>
+    </div>
+
+    <!-- 2. Simulation Condition Options (OK, WARN, DANGER, TUNE) + Manual Transmit Button -->
+    <div class="d-flex align-items-center justify-content-between gap-1.5 mb-3">
+      <!-- 4-State Condition & Tuning Selector Group -->
+      <div class="d-flex align-items-center gap-1 flex-grow-1 min-w-0">
+        <div class="condition-selector-group flex-grow-1">
+          <button 
+            :id="'btn-cond-ok-' + node.pondId.toLowerCase()"
+            @click="onSelectCondition('ok')" 
+            :disabled="!node.isPowered"
+            class="condition-btn"
+            :class="{ 'active-ok': node.simulationCondition === 'ok' }"
+            title="Set optimal & healthy water quality (Click Send Data to transmit)"
+          >
+            <i class="bi bi-check-circle-fill"></i>
+            <span>OK</span>
+          </button>
+          <button 
+            :id="'btn-cond-warn-' + node.pondId.toLowerCase()"
+            @click="onSelectCondition('warning')" 
+            :disabled="!node.isPowered"
+            class="condition-btn"
+            :class="{ 'active-warning': node.simulationCondition === 'warning' }"
+            title="Set warning condition (low DO, elevated ammonia)"
+          >
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span>WARN</span>
+          </button>
+          <button 
+            :id="'btn-cond-danger-' + node.pondId.toLowerCase()"
+            @click="onSelectCondition('danger')" 
+            :disabled="!node.isPowered"
+            class="condition-btn"
+            :class="{ 'active-danger': node.simulationCondition === 'danger' }"
+            title="Set critical / danger condition (severe hypoxia & toxic ammonia)"
+          >
+            <i class="bi bi-radioactive"></i>
+            <span>DANGER</span>
+          </button>
+          <button 
+            :id="'btn-cond-tune-' + node.pondId.toLowerCase()"
+            @click="showAdjustModal = true" 
+            :disabled="!node.isPowered"
+            class="condition-btn"
+            :class="{ 'active-custom': node.simulationCondition === 'custom' }"
+            title="Open fine-tuning sliders for DO, pH, Temp, TAN & Biofloc"
+          >
+            <i class="bi bi-sliders"></i>
+            <span>TUNE</span>
+          </button>
         </div>
       </div>
 
-      <!-- Quick Status Chips (Uptime, Signal, Battery) -->
-      <div class="text-end" style="font-size: 0.68rem;">
-        <div class="text-secondary font-monospace fw-semibold mb-1">
-          <i class="bi bi-clock-history me-1 text-primary"></i>{{ formattedUptime }}
+      <!-- Manual Transmit Button -->
+      <button 
+        :id="'btn-send-' + node.pondId.toLowerCase()"
+        @click="onManualUpdate" 
+        :disabled="!node.isPowered"
+        class="btn-manual-tx flex-shrink-0"
+        :class="{ 'btn-pending-tx': node.hasPendingChanges }"
+        :title="node.hasPendingChanges ? 'Pending adjusted data • Click to transmit to MQTT' : 'Transmit telemetry packet for this node manually now'"
+      >
+        <i :class="isUpdating ? 'bi bi-arrow-repeat animate-spin-fast' : 'bi bi-send-fill'"></i>
+        <span>{{ isUpdating ? 'SENDING...' : (node.hasPendingChanges ? 'Send Data •' : 'Send Data') }}</span>
+      </button>
+    </div>
+
+    <!-- 3. Metric Tiles Grid: 3 Columns x 3 Rows (Sensors & Action Actuators) -->
+    <div class="row g-2 mb-3">
+      <!-- Row 1: DO, pH, Temp -->
+      <div class="col-4">
+        <div 
+          class="metric-tile" 
+          @click="node.isPowered && (showAdjustModal = true)"
+          :style="node.isPowered ? 'cursor: pointer;' : ''"
+          title="Click to adjust DO value"
+        >
+          <div class="metric-tile-label d-flex justify-content-between">
+            <span>DO (Oxygen):</span>
+            <i v-if="node.isPowered" class="bi bi-pencil-fill text-muted" style="font-size: 0.6rem;"></i>
+          </div>
+          <div class="metric-tile-value" :class="{ 'text-danger': node.isPowered && node.dissolvedOxygen < 3.5, 'text-warning': node.isPowered && node.dissolvedOxygen >= 3.5 && node.dissolvedOxygen < 5.0 }">
+            <span v-if="node.isPowered">{{ node.dissolvedOxygen.toFixed(2) }}<span class="small fw-normal text-muted ms-1" style="font-size: 0.68rem;">mg/L</span></span>
+            <span v-else class="text-muted">--</span>
+          </div>
         </div>
-        <div class="d-flex align-items-center justify-content-end gap-1 text-muted font-monospace">
-          <span class="badge bg-light text-secondary border px-1 py-0" style="font-size: 0.62rem;" title="WiFi Signal">
-            <i class="bi bi-wifi me-1 text-success"></i>{{ node.wifiRssi }}dBm
-          </span>
-          <span class="badge bg-light text-secondary border px-1 py-0" style="font-size: 0.62rem;" title="Battery">
-            <i class="bi bi-battery-charging me-1 text-warning"></i>{{ node.batteryVoltage }}V
-          </span>
+      </div>
+
+      <div class="col-4">
+        <div 
+          class="metric-tile" 
+          @click="node.isPowered && (showAdjustModal = true)"
+          :style="node.isPowered ? 'cursor: pointer;' : ''"
+          title="Click to adjust pH value"
+        >
+          <div class="metric-tile-label d-flex justify-content-between">
+            <span>pH Level:</span>
+            <i v-if="node.isPowered" class="bi bi-pencil-fill text-muted" style="font-size: 0.6rem;"></i>
+          </div>
+          <div class="metric-tile-value" :class="{ 'text-danger': node.isPowered && (node.ph < 6.5 || node.ph > 8.5) }">
+            <span v-if="node.isPowered">{{ node.ph.toFixed(2) }}</span>
+            <span v-else class="text-muted">--</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-4">
+        <div 
+          class="metric-tile" 
+          @click="node.isPowered && (showAdjustModal = true)"
+          :style="node.isPowered ? 'cursor: pointer;' : ''"
+          title="Click to adjust Temperature value"
+        >
+          <div class="metric-tile-label d-flex justify-content-between">
+            <span>Water Temp:</span>
+            <i v-if="node.isPowered" class="bi bi-pencil-fill text-muted" style="font-size: 0.6rem;"></i>
+          </div>
+          <div class="metric-tile-value" :class="{ 'text-danger': node.isPowered && node.temperature > 32.0, 'text-warning': node.isPowered && node.temperature > 30.0 }">
+            <span v-if="node.isPowered">{{ node.temperature.toFixed(1) }}<span class="small fw-normal text-muted ms-1" style="font-size: 0.68rem;">°C</span></span>
+            <span v-else class="text-muted">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Ammonia TAN, Floc Density, Aerator (TSS Sludge removed) -->
+      <div class="col-4">
+        <div 
+          class="metric-tile" 
+          @click="node.isPowered && (showAdjustModal = true)"
+          :style="node.isPowered ? 'cursor: pointer;' : ''"
+          title="Click to adjust Ammonia value"
+        >
+          <div class="metric-tile-label d-flex justify-content-between">
+            <span>Ammonia TAN:</span>
+            <i v-if="node.isPowered" class="bi bi-pencil-fill text-muted" style="font-size: 0.6rem;"></i>
+          </div>
+          <div class="metric-tile-value" :class="{ 'text-danger': node.isPowered && node.ammonia > 0.8, 'text-warning': node.isPowered && node.ammonia >= 0.4 && node.ammonia <= 0.8 }">
+            <span v-if="node.isPowered">{{ node.ammonia.toFixed(3) }}<span class="small fw-normal text-muted ms-1" style="font-size: 0.65rem;">ppm</span></span>
+            <span v-else class="text-muted">--</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-4">
+        <div 
+          class="metric-tile" 
+          @click="node.isPowered && (showAdjustModal = true)"
+          :style="node.isPowered ? 'cursor: pointer;' : ''"
+          title="Click to adjust Biofloc density"
+        >
+          <div class="metric-tile-label d-flex justify-content-between">
+            <span>Floc Density:</span>
+            <i v-if="node.isPowered" class="bi bi-pencil-fill text-muted" style="font-size: 0.6rem;"></i>
+          </div>
+          <div class="metric-tile-value">
+            <span v-if="node.isPowered">{{ (node.flocDensity || (node.mudSolids / 6.8)).toFixed(1) }}<span class="small fw-normal text-muted ms-1" style="font-size: 0.65rem;">mL/L</span></span>
+            <span v-else class="text-muted">--</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-4">
+        <div class="metric-tile">
+          <div class="metric-tile-label">Aerator Speed:</div>
+          <div class="metric-tile-value">
+            <div v-if="node.isPowered" class="d-flex align-items-center gap-1.5" :class="node.aerator.state === 'running' ? 'text-primary' : 'text-muted'">
+              <i v-if="node.aerator.state === 'running'" class="bi bi-fan fs-6 animate-spin"></i>
+              <span>{{ node.aerator.state === 'running' ? node.aerator.powerPercent + '%' : 'IDLE' }}</span>
+            </div>
+            <span v-else class="text-muted">OFF</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Action Actuators (Auto-Feeder, Molasses Dosing, Siphon with action animations) -->
+      <!-- Action 1: Auto-Feeder -->
+      <div class="col-4">
+        <div class="metric-tile" :class="{ 'actuator-active-feeder': node.isPowered && node.feeder.state === 'running' }">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="metric-tile-label">Auto-Feeder:</div>
+            <button 
+              v-if="node.isPowered && node.feeder.state !== 'running'"
+              @click.stop="triggerFeed" 
+              class="btn-mini-act" 
+              title="Manual feed test 50g (preview animation)"
+            >
+              +Feed
+            </button>
+          </div>
+          
+          <div class="metric-tile-value mt-0.5">
+            <!-- Active Dispensing: Display executed dose and progress -->
+            <div v-if="node.isPowered && node.feeder.state === 'running'" class="w-100">
+              <div class="d-flex align-items-center justify-content-between text-success" style="font-size: 0.74rem;">
+                <span class="d-flex align-items-center gap-1 fw-bold text-truncate">
+                  <i class="bi bi-box-seam-fill animate-feed-running flex-shrink-0"></i>
+                  <span>FEEDING: {{ node.feeder.dose || 50 }}g</span>
+                </span>
+                <span class="font-monospace small ms-1 flex-shrink-0">{{ node.feeder.progress }}%</span>
+              </div>
+              <div class="progress progress-mini mt-1">
+                <div class="progress-bar bg-success progress-bar-animated-fast" :style="{ width: `${node.feeder.progress}%` }"></div>
+              </div>
+            </div>
+            
+            <!-- Idle State: Clean status only (no cumulative value) -->
+            <div v-else-if="node.isPowered" class="d-flex align-items-center">
+              <span class="text-secondary font-monospace fw-bold" style="font-size: 0.85rem;">IDLE</span>
+            </div>
+            <span v-else class="text-muted font-monospace" style="font-size: 0.85rem;">OFF</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action 2: Molasses Dosing -->
+      <div class="col-4">
+        <div class="metric-tile" :class="{ 'actuator-active-molasses': node.isPowered && node.molassesPump.state === 'running' }">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="metric-tile-label">Molasses Dosing:</div>
+            <button 
+              v-if="node.isPowered && node.molassesPump.state !== 'running'"
+              @click.stop="triggerMolasses" 
+              class="btn-mini-act" 
+              title="Manual molasses test 100ml (preview animation)"
+            >
+              +Molasses
+            </button>
+          </div>
+          
+          <div class="metric-tile-value mt-0.5">
+            <!-- Active Dosing: Display executed dose and progress -->
+            <div v-if="node.isPowered && node.molassesPump.state === 'running'" class="w-100">
+              <div class="d-flex align-items-center justify-content-between text-warning" style="font-size: 0.74rem;">
+                <span class="d-flex align-items-center gap-1 fw-bold text-truncate">
+                  <i class="bi bi-droplet-fill animate-molasses-running flex-shrink-0"></i>
+                  <span>DOSING: {{ node.molassesPump.dose || 100 }}ml</span>
+                </span>
+                <span class="font-monospace small ms-1 flex-shrink-0">{{ node.molassesPump.progress }}%</span>
+              </div>
+              <div class="progress progress-mini mt-1">
+                <div class="progress-bar bg-warning progress-bar-animated-fast" :style="{ width: `${node.molassesPump.progress}%` }"></div>
+              </div>
+            </div>
+            
+            <!-- Idle State: Clean status only (no cumulative value) -->
+            <div v-else-if="node.isPowered" class="d-flex align-items-center">
+              <span class="text-secondary font-monospace fw-bold" style="font-size: 0.85rem;">IDLE</span>
+            </div>
+            <span v-else class="text-muted font-monospace" style="font-size: 0.85rem;">OFF</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action 3: Siphon / Sludge Drain -->
+      <div class="col-4">
+        <div class="metric-tile" :class="{ 'actuator-active-siphon': node.isPowered && node.waterChange.state !== 'idle' }">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="metric-tile-label">Siphon / Drain:</div>
+            <button 
+              v-if="node.isPowered && node.waterChange.state === 'idle'"
+              @click.stop="triggerSiphon" 
+              class="btn-mini-act" 
+              title="Manual siphon sludge drain test 200L (preview animation)"
+            >
+              +Siphon
+            </button>
+          </div>
+          
+          <div class="metric-tile-value mt-0.5">
+            <!-- Active Siphon: Display executed volume and phase -->
+            <div v-if="node.isPowered && node.waterChange.state !== 'idle'" class="w-100">
+              <div class="d-flex align-items-center justify-content-between text-info" style="font-size: 0.74rem;">
+                <span class="d-flex align-items-center gap-1 fw-bold text-truncate">
+                  <i class="bi bi-water animate-siphon-running flex-shrink-0"></i>
+                  <span>{{ node.waterChange.state === 'refilling' ? 'REFILLING' : 'DRAINING' }}: {{ node.waterChange.volume || 200 }}L</span>
+                </span>
+                <span class="font-monospace small ms-1 flex-shrink-0">{{ node.waterChange.progress }}%</span>
+              </div>
+              <div class="progress progress-mini mt-1">
+                <div class="progress-bar bg-info progress-bar-animated-fast" :style="{ width: `${node.waterChange.progress}%` }"></div>
+              </div>
+            </div>
+            
+            <!-- Idle State: Clean status only (no cumulative value) -->
+            <div v-else-if="node.isPowered" class="d-flex align-items-center">
+              <span class="text-secondary font-monospace fw-bold" style="font-size: 0.85rem;">IDLE</span>
+            </div>
+            <span v-else class="text-muted font-monospace" style="font-size: 0.85rem;">OFF</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Card Body -->
-    <div class="card-body p-2 d-flex flex-column justify-content-between">
-      <!-- 1. Live Telemetry Sensors (Lively Pastel 2x2 Grid) -->
-      <div class="row g-1 mb-2">
-        <!-- DO -->
-        <div class="col-6">
-          <div class="sensor-tile sensor-tile-do p-2 rounded-3 h-100">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="sensor-label"><i class="bi bi-droplet-half me-1 text-info"></i>DO</span>
-              <span :class="['badge rounded-pill', doStatus.class]" style="font-size: 0.6rem; padding: 2px 6px;">
-                {{ doStatus.text }}
-              </span>
-            </div>
-            <div class="d-flex align-items-baseline">
-              <span class="fs-5 fw-bold text-dark font-monospace lh-1">
-                {{ node.dissolvedOxygen.toFixed(2) }}
-              </span>
-              <span class="text-muted ms-1" style="font-size: 0.68rem;">mg/L</span>
-            </div>
-          </div>
+    <!-- 4. Footer Row: Battery Pill Graphic + % Only (RSSI Removed) -->
+    <div class="d-flex justify-content-between align-items-center mt-auto pt-1">
+      <!-- Battery Pill Graphic + Percentage + Voltage -->
+      <div class="d-flex align-items-center font-monospace" style="font-size: 0.8rem; color: #475569;">
+        <div class="battery-pill-graphic">
+          <div class="battery-pill-fill" :style="{ width: `${node.batteryPercent || 94}%` }"></div>
         </div>
-
-        <!-- Ammonia TAN -->
-        <div class="col-6">
-          <div class="sensor-tile sensor-tile-ammonia p-2 rounded-3 h-100">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="sensor-label"><i class="bi bi-radioactive me-1 text-warning"></i>TAN</span>
-              <span :class="['badge rounded-pill', ammoniaStatus.class]" style="font-size: 0.6rem; padding: 2px 6px;">
-                {{ ammoniaStatus.text }}
-              </span>
-            </div>
-            <div class="d-flex align-items-baseline">
-              <span class="fs-5 fw-bold font-monospace lh-1" :class="node.ammonia > 0.5 ? 'text-danger' : 'text-dark'">
-                {{ node.ammonia.toFixed(3) }}
-              </span>
-              <span class="text-muted ms-1" style="font-size: 0.68rem;">mg/L</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- pH & Temp -->
-        <div class="col-6">
-          <div class="sensor-tile sensor-tile-ph p-2 rounded-3 h-100">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="sensor-label"><i class="bi bi-thermometer-half me-1 text-success"></i>pH / Temp</span>
-              <span :class="['badge rounded-pill', phStatus.class]" style="font-size: 0.6rem; padding: 2px 6px;">
-                pH {{ node.ph.toFixed(1) }}
-              </span>
-            </div>
-            <div class="fw-bold text-dark font-monospace lh-1 d-flex align-items-baseline" style="font-size: 0.92rem;">
-              <span>{{ node.ph.toFixed(2) }}</span>
-              <span class="text-muted fw-normal ms-1" style="font-size: 0.7rem;">| {{ node.temperature.toFixed(1) }}°C</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- TSS Sludge -->
-        <div class="col-6">
-          <div class="sensor-tile sensor-tile-tss p-2 rounded-3 h-100">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="sensor-label"><i class="bi bi-layers-half me-1 text-primary"></i>TSS</span>
-              <span class="badge bg-white text-secondary rounded-pill border" style="font-size: 0.6rem; padding: 2px 6px;">
-                {{ node.mudSolids > 200 ? 'Turbid' : 'Clear' }}
-              </span>
-            </div>
-            <div class="d-flex align-items-baseline">
-              <span class="fs-5 fw-bold text-dark font-monospace lh-1">
-                {{ node.mudSolids.toFixed(0) }}
-              </span>
-              <span class="text-muted ms-1" style="font-size: 0.68rem;">mg/L</span>
-            </div>
-          </div>
-        </div>
+        <span class="fw-bold">{{ (node.batteryPercent || 94).toFixed(1) }}%</span>
+        <span class="text-muted ms-1" style="font-size: 0.7rem;">({{ (node.batteryVoltage || 24.2).toFixed(1) }}V)</span>
       </div>
 
-      <!-- 2. Actuator Matrix (Clean Idle vs Live Progress) -->
-      <div class="border rounded-3 p-2 bg-white">
-        <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-          <span class="fw-bold text-secondary text-uppercase" style="font-size: 0.68rem; letter-spacing: 0.5px;">
-            <i class="bi bi-cpu me-1 text-primary"></i>Actuators
-          </span>
-          <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.62rem;">
-            Remote Control
-          </span>
-        </div>
-
-        <!-- Actuator 1: Aerator -->
-        <div class="actuator-row mb-1 p-2 rounded-2" :class="node.aerator.state === 'running' ? 'actuator-active-cyan' : 'bg-light-subtle'">
-          <div class="d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-2">
-              <i :class="['bi bi-fan fs-6', node.aerator.state === 'running' ? 'text-info animate-spin-fast' : 'text-muted']"></i>
-              <span class="fw-medium text-dark" style="font-size: 0.74rem;">Aerator</span>
-            </div>
-            <div>
-              <span v-if="node.aerator.state === 'running'" class="badge bg-info text-white font-monospace" style="font-size: 0.66rem;">
-                Running ({{ node.aerator.powerPercent }}%)
-              </span>
-              <span v-else class="badge bg-light text-muted border font-monospace" style="font-size: 0.66rem;">
-                Idle
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Actuator 2: Feeder -->
-        <div class="actuator-row mb-1 p-2 rounded-2" :class="node.feeder.state === 'running' ? 'actuator-active-green' : 'bg-light-subtle'">
-          <div class="d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-2">
-              <i :class="['bi bi-basket fs-6', node.feeder.state === 'running' ? 'text-success animate-bounce' : 'text-muted']"></i>
-              <span class="fw-medium text-dark" style="font-size: 0.74rem;">Feeder</span>
-            </div>
-            <div>
-              <span v-if="node.feeder.state === 'running'" class="badge bg-success text-white font-monospace animate-pulse" style="font-size: 0.66rem;">
-                Dispensing {{ node.feeder.dose }}g ({{ Math.round(node.feeder.progress) }}%)
-              </span>
-              <span v-else class="badge bg-light text-muted border font-monospace" style="font-size: 0.66rem;">
-                Idle
-              </span>
-            </div>
-          </div>
-          <!-- Progress bar only when running -->
-          <div v-if="node.feeder.state === 'running'" class="progress mt-1" style="height: 4px;">
-            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" :style="{ width: `${node.feeder.progress}%` }"></div>
-          </div>
-        </div>
-
-        <!-- Actuator 3: Molasses -->
-        <div class="actuator-row mb-1 p-2 rounded-2" :class="node.molassesPump.state === 'running' ? 'actuator-active-amber' : 'bg-light-subtle'">
-          <div class="d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-2">
-              <i :class="['bi bi-funnel fs-6', node.molassesPump.state === 'running' ? 'text-warning animate-bounce' : 'text-muted']"></i>
-              <span class="fw-medium text-dark" style="font-size: 0.74rem;">Molasses</span>
-            </div>
-            <div>
-              <span v-if="node.molassesPump.state === 'running'" class="badge bg-warning text-dark font-monospace animate-pulse" style="font-size: 0.66rem;">
-                Dosing {{ node.molassesPump.dose }}ml ({{ Math.round(node.molassesPump.progress) }}%)
-              </span>
-              <span v-else class="badge bg-light text-muted border font-monospace" style="font-size: 0.66rem;">
-                Idle
-              </span>
-            </div>
-          </div>
-          <!-- Progress bar only when running -->
-          <div v-if="node.molassesPump.state === 'running'" class="progress mt-1" style="height: 4px;">
-            <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" :style="{ width: `${node.molassesPump.progress}%` }"></div>
-          </div>
-        </div>
-
-        <!-- Actuator 4: Water Siphon -->
-        <div class="actuator-row p-2 rounded-2" :class="node.waterChange.state !== 'idle' ? 'actuator-active-blue' : 'bg-light-subtle'">
-          <div class="d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-2">
-              <i :class="['bi bi-arrow-repeat fs-6', node.waterChange.state !== 'idle' ? 'text-primary animate-spin-fast' : 'text-muted']"></i>
-              <span class="fw-medium text-dark" style="font-size: 0.74rem;">Water Siphon</span>
-            </div>
-            <div>
-              <span v-if="node.waterChange.state !== 'idle'" class="badge bg-primary text-white font-monospace animate-pulse" style="font-size: 0.66rem;">
-                {{ node.waterChange.phase }} ({{ Math.round(node.waterChange.progress) }}%)
-              </span>
-              <span v-else class="badge bg-light text-muted border font-monospace" style="font-size: 0.66rem;">
-                Idle
-              </span>
-            </div>
-          </div>
-          <!-- Progress bar only when running -->
-          <div v-if="node.waterChange.state !== 'idle'" class="progress mt-1" style="height: 4px;">
-            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" :style="{ width: `${node.waterChange.progress}%` }"></div>
-          </div>
-        </div>
+      <!-- Time spec -->
+      <div class="text-muted font-monospace" style="font-size: 0.72rem;">
+        {{ formattedTime }}
       </div>
     </div>
+
+    <!-- Fine-Tuning Parameter Adjuster Modal -->
+    <AdjustSensorModal 
+      :show="showAdjustModal" 
+      :node="node" 
+      @close="showAdjustModal = false" 
+    />
   </div>
 </template>
