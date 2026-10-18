@@ -31,7 +31,7 @@ onUnmounted(() => {
         id="btn-toggle-sidebar"
         class="btn-sidebar-toggle"
         @click="toggleSidebar"
-        :title="isSidebarCollapsed ? 'Perbesar Sidebar (Expand)' : 'Perkecil Sidebar (Collapse)'"
+        :title="isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'"
       >
         <PanelLeftOpen v-if="isSidebarCollapsed" :size="18" />
         <PanelLeftClose v-else :size="18" />

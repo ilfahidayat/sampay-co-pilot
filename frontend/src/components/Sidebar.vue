@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import router from '../router'
 import { usePonds } from '../composables/usePonds'
 import { useSystemConfig } from '../composables/useSystemConfig'
 import { useSidebar } from '../composables/useSidebar'
@@ -33,13 +34,15 @@ const navItems = computed(() => [
 ])
 
 const isItemActive = (item) => {
+  if (!item || !item.path) return false
+  const currentPath = route?.path || router?.currentRoute?.value?.path || (typeof window !== 'undefined' ? window.location.pathname : '/')
   if (item.path === '/') {
-    return route.path === '/' || route.path === '/dashboard'
+    return currentPath === '/' || currentPath === '/dashboard'
   }
   if (item.id === 'treatment') {
-    return route.path === '/daily-treatment' || route.path === '/execution' || route.path === '/daily-execution' || route.path === '/treatment'
+    return currentPath === '/daily-treatment' || currentPath === '/execution' || currentPath === '/daily-execution' || currentPath === '/treatment'
   }
-  return route.path.startsWith(item.path)
+  return currentPath.startsWith(item.path)
 }
 
 const getBrokerShortHost = (url) => {
